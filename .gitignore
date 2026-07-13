@@ -3,11 +3,16 @@ __pycache__/
 *.py[cod]
 
 # PyInstaller build artifacts and packaged executables
-build/
-dist/
-*.exe
-!/guardrail.exe
+# Keep generated files out of version control, except executables.
+build/*
+!build/**/
+!build/**/*.exe
+dist/*
+!dist/**/
+!dist/**/*.exe
 
 # Local backups and workspace-specific agent configuration
-Backup/
+Backup/*
+!Backup/**/
+!Backup/**/*.exe
 .agents/
