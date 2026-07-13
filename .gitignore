@@ -3,16 +3,10 @@ __pycache__/
 *.py[cod]
 
 # PyInstaller build artifacts and packaged executables
-# Keep generated files out of version control, except executables.
-build/*
-!build/**/
-!build/**/*.exe
-dist/*
-!dist/**/
-!dist/**/*.exe
+# Generated build folders stay local. Executables elsewhere are not ignored.
+build/
+dist/
 
 # Local backups and workspace-specific agent configuration
-Backup/*
-!Backup/**/
-!Backup/**/*.exe
+Backup/
 .agents/
