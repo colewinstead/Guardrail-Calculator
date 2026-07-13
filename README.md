@@ -12,6 +12,7 @@ Current application version: **V8.5**
 - Uses either a direct hazard offset or a clear-zone selection based on MDOT Table 9-2-A.
 - Handles transition length, terminal section, flare rate, and gating length.
 - Generates a calculation-sheet PDF, with an option to append the included MDOT reference documents.
+- Exports a layered, to-scale R12 DXF plan showing the calculated guardrail lengths and GR-4/GR-4a shoulder geometry at both bridge ends.
 
 ## Use the Windows application
 
@@ -21,6 +22,20 @@ Enter the project and roadway information, select the design parameters, and cho
 
 - **Calculate** to show results in the application.
 - **Generate PDF** to save a calculation package. The package can include the MDOT reference appendix and can optionally open when complete.
+- **Export DXF** to create either a standalone feet-based plan or a LandXML overlay in real project coordinates. The export dialog collects bridge limits and the applicable GR-4 layout.
+
+### DXF export modes
+
+- **Standalone** uses one DXF model-space unit per foot and asks for the bridge length.
+- **LandXML overlay** lists every usable alignment in the selected file and asks for bridge start and end stations.
+- LandXML overlays accept foot-based line and circular-arc geometry, including LandXML station equations and ORD region suffixes such as `R2`. Metric units, spirals, invalid station ranges, and alignments without adequate approach length are rejected before a DXF is written.
+- The DXF contains separate layers for the roadway, alignment, bridge, lane lines, shoulder flare, guardrail, terminal, gating section, dimensions, leaders, labels, and traffic arrows.
+- The terminal end flares 2'-0" over its entered length; the 12.5-foot gating section then flares an additional 2'-8" to reach the GR-4A 4'-8" total offset.
+- The clear-zone line is placed at the edge-of-traveled-lane offset plus LA on the approach beyond the gating endpoint, then tapers back toward the bridge into the shoulder line over 75 feet.
+- DXF annotations use compact engineering dimensions; long descriptive feature callouts are intentionally omitted to keep the plan legible.
+- The 75-foot clear-zone taper and 150-foot shoulder transition are dimensioned longitudinally, while LA is labeled horizontally beside the full-width clear-zone line.
+- The 150-foot shoulder flare is drawn as a continuous line and ties directly into the ETL. The normal shoulder at ETL + L2 intersects that taper before its endpoint and continues on the separate dashed `GR_NORMAL_SHOULDER` layer without a called-out tie length.
+- All DXF labels and dimensions use the MDOT `Engineering Regular` text style backed by `EngineeringRegular.ttf`, including TrueType family metadata for correct OpenRoads/MicroStation font resolution.
 
 ## Run from source
 
@@ -34,7 +49,7 @@ Enter the project and roadway information, select the design parameters, and cho
 Install the Python dependencies:
 
 ```powershell
-py -m pip install pypdf reportlab
+py -m pip install pypdf reportlab ezdxf
 ```
 
 Run the application from the project folder:
