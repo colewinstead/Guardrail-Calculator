@@ -2,10 +2,6 @@
 __pycache__/
 *.py[cod]
 
-# PyInstaller build artifacts and packaged executables
-# Generated build folders stay local. Executables elsewhere are not ignored.
-build/
-dist/
 
 # Local backups and workspace-specific agent configuration
 Backup/

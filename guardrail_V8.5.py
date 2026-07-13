@@ -2,6 +2,8 @@ import math
 import re
 import os, sys
 import shutil
+import guardrail_dxf
+import guardrail_landxml
 from io import BytesIO
 from datetime import datetime
 from typing import Optional
@@ -1797,20 +1799,49 @@ def ui_main():
     root.title(f"Guardrail Length-of-Need Calculator {APP_VERSION}")
     root.geometry("1040x850")
     root.minsize(900, 700)
+    root.configure(background="#111827")
 
     style = ttk.Style(root)
-    if "vista" in style.theme_names():
-        style.theme_use("vista")
-    style.configure("Title.TLabel", font=("Segoe UI", 18, "bold"), foreground="#17365D")
-    style.configure("Subtitle.TLabel", font=("Segoe UI", 9), foreground="#4A5560")
-    style.configure("Section.TLabelframe.Label", font=("Segoe UI", 10, "bold"), foreground="#17365D")
-    style.configure("Primary.TButton", font=("Segoe UI", 10, "bold"))
-    style.configure("Result.Treeview", rowheight=26, font=("Segoe UI", 10))
-    style.configure("Result.Treeview.Heading", font=("Segoe UI", 9, "bold"))
+    if "clam" in style.theme_names():
+        style.theme_use("clam")
+    dark_bg = "#111827"
+    panel_bg = "#1F2937"
+    input_bg = "#0F172A"
+    border = "#374151"
+    text_fg = "#E5E7EB"
+    muted_fg = "#9CA3AF"
+    accent = "#3B82F6"
+    style.configure(".", background=dark_bg, foreground=text_fg, fieldbackground=input_bg, bordercolor=border, lightcolor=border, darkcolor=border)
+    style.configure("TFrame", background=dark_bg)
+    style.configure("TLabel", background=dark_bg, foreground=text_fg)
+    style.configure("Title.TLabel", font=("Segoe UI", 18, "bold"), foreground="#93C5FD", background=dark_bg)
+    style.configure("Subtitle.TLabel", font=("Segoe UI", 9), foreground=muted_fg, background=dark_bg)
+    style.configure("TLabelframe", background=panel_bg, bordercolor=border, relief="solid")
+    style.configure("TLabelframe.Label", background=panel_bg, foreground="#BFDBFE")
+    style.configure("Section.TLabelframe", background=panel_bg, bordercolor=border)
+    style.configure("Section.TLabelframe.Label", font=("Segoe UI", 10, "bold"), foreground="#93C5FD", background=panel_bg)
+    style.configure("TEntry", fieldbackground=input_bg, foreground=text_fg, insertcolor=text_fg, bordercolor=border)
+    style.map("TEntry", fieldbackground=[("disabled", "#1F2937"), ("readonly", input_bg)], foreground=[("disabled", "#6B7280")])
+    style.configure("TCombobox", fieldbackground=input_bg, background=input_bg, foreground=text_fg, arrowcolor=text_fg, bordercolor=border)
+    style.map("TCombobox", fieldbackground=[("readonly", input_bg), ("disabled", "#1F2937")], foreground=[("readonly", text_fg), ("disabled", "#6B7280")], selectbackground=[("readonly", input_bg)], selectforeground=[("readonly", text_fg)])
+    style.configure("TButton", background="#374151", foreground=text_fg, bordercolor="#4B5563", padding=(8, 5))
+    style.map("TButton", background=[("active", "#4B5563"), ("pressed", "#1F2937"), ("disabled", "#1F2937")], foreground=[("disabled", "#6B7280")])
+    style.configure("Primary.TButton", font=("Segoe UI", 10, "bold"), background=accent, foreground="#FFFFFF", bordercolor="#60A5FA")
+    style.map("Primary.TButton", background=[("active", "#2563EB"), ("pressed", "#1D4ED8")])
+    style.configure("TCheckbutton", background=panel_bg, foreground=text_fg)
+    style.map("TCheckbutton", background=[("active", panel_bg)], foreground=[("active", "#FFFFFF")])
+    style.configure("TRadiobutton", background=dark_bg, foreground=text_fg)
+    style.map("TRadiobutton", background=[("active", dark_bg)], foreground=[("active", "#FFFFFF")])
+    style.configure("ClearZone.TLabel", font=("Segoe UI", 10, "bold"), foreground="#6EE7B7", background="#064E3B")
+    style.configure("Result.Treeview", rowheight=26, font=("Segoe UI", 10), background=input_bg, fieldbackground=input_bg, foreground=text_fg, bordercolor=border)
+    style.map("Result.Treeview", background=[("selected", "#1D4ED8")], foreground=[("selected", "#FFFFFF")])
+    style.configure("Result.Treeview.Heading", font=("Segoe UI", 9, "bold"), background="#374151", foreground=text_fg, relief="flat")
+    style.map("Result.Treeview.Heading", background=[("active", "#4B5563")])
+    style.configure("Vertical.TScrollbar", background="#374151", troughcolor=input_bg, arrowcolor=text_fg, bordercolor=border)
 
     outer = ttk.Frame(root)
     outer.pack(fill="both", expand=True)
-    canvas = tk.Canvas(outer, highlightthickness=0, background="#F4F6F8")
+    canvas = tk.Canvas(outer, highlightthickness=0, background=dark_bg)
     scrollbar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
     content = ttk.Frame(canvas, padding=18)
     content_window = canvas.create_window((0, 0), window=content, anchor="nw")
@@ -1859,6 +1890,7 @@ def ui_main():
     term_mode_var = tk.StringVar(value="Default")
     term_custom_var = tk.StringVar(value=f"{DEFAULT_TERMINAL_SECTION_FT:.4f}")
     flare_var = tk.StringVar(value="30:1")
+    clear_zone_used_var = tk.StringVar()
 
     # Output options
     pdf_style_var = tk.StringVar(value="Complete Calculation Package")
@@ -1957,6 +1989,11 @@ def ui_main():
         design_frame, 9, "Flare Rate, a/b", flare_var, "combo",
         ["30:1", "28:1", "26:1", "24:1", "21:1", "18:1", "16:1", "15:1", "13:1", "Non-Flared"],
     )
+    clear_zone_used_label = ttk.Label(
+        design_frame, textvariable=clear_zone_used_var, style="ClearZone.TLabel",
+        anchor="center", padding=(8, 7),
+    )
+    clear_zone_used_label.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(9, 2))
 
     pdf_frame = ttk.LabelFrame(content, text="Calculation Package Output", padding=12, style="Section.TLabelframe")
     pdf_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 10))
@@ -2027,6 +2064,7 @@ def ui_main():
         set_state(cz_custom_entry, clearzone and CLEAR_ZONE_PICKS[cz_pick_var.get()] == "custom")
         set_state(L1_custom_entry, l1_mode_var.get() == "Custom")
         set_state(term_custom_entry, term_mode_var.get() == "Custom")
+        refresh_clear_zone_display()
 
     for combo in (facility_combo, la_mode_combo, cz_pick_combo, l1_mode_combo, term_mode_combo):
         combo.bind("<<ComboboxSelected>>", update_conditional_fields)
@@ -2036,6 +2074,21 @@ def ui_main():
         pick = CLEAR_ZONE_PICKS[cz_pick_var.get()]
         custom_value = float(_first_number(cz_custom_var.get())) if pick == "custom" else None
         return resolve_clear_zone(speed, adt, slope, pick, custom_value)
+
+    def refresh_clear_zone_display(*_args):
+        if LA_MODES[la_mode_var.get()] != "clearzone":
+            clear_zone_used_var.set("")
+            clear_zone_used_label.grid_remove()
+            return
+        clear_zone_used_label.grid()
+        try:
+            selected_la = compute_clear_zone(int(speed_var.get()), float(_first_number(adt_var.get())))
+            clear_zone_used_var.set(f"AUTOMATIC CLEAR ZONE:  LA USED = {selected_la:.4f} FT")
+        except Exception:
+            clear_zone_used_var.set("AUTOMATIC CLEAR ZONE:  Enter valid values to determine LA")
+
+    for variable in (speed_var, adt_var, slope_var, cz_pick_var, cz_custom_var, la_mode_var):
+        variable.trace_add("write", refresh_clear_zone_display)
 
     def calculate_model():
         facility = FACILITIES[facility_var.get()]
@@ -2048,6 +2101,7 @@ def ui_main():
             LA = float(_first_number(LA_var.get()))
         else:
             LA = compute_clear_zone(speed, adt)
+            clear_zone_used_var.set(f"AUTOMATIC CLEAR ZONE:  LA USED = {LA:.4f} FT")
         if LA <= 0:
             raise ValueError("Hazard offset LA must be greater than zero.")
 
@@ -2116,6 +2170,27 @@ def ui_main():
         for label, near, opposing in rows:
             results_tree.insert("", "end", text=label, values=(near, opposing))
 
+    def clear_results():
+        for item in results_tree.get_children():
+            results_tree.delete(item)
+
+    auto_calculate_job = {"id": None}
+
+    def run_auto_calculation():
+        auto_calculate_job["id"] = None
+        try:
+            results, _ = calculate_model()
+            show_results(results)
+            status_var.set("Results updated automatically.")
+        except Exception as exc:
+            clear_results()
+            status_var.set(f"Waiting for valid calculation inputs: {exc}")
+
+    def schedule_auto_calculation(*_args):
+        if auto_calculate_job["id"] is not None:
+            root.after_cancel(auto_calculate_job["id"])
+        auto_calculate_job["id"] = root.after(350, run_auto_calculation)
+
     def calculate_action():
         try:
             results, _ = calculate_model()
@@ -2159,21 +2234,196 @@ def ui_main():
             status_var.set("PDF generation failed.")
             messagebox.showerror("PDF Generation Error", str(e))
 
+    def generate_dxf_action():
+        try:
+            results, pdf_data = calculate_model()
+            show_results(results)
+            dialog = tk.Toplevel(root)
+            dialog.title("To-Scale Guardrail DXF")
+            dialog.configure(background=dark_bg)
+            dialog.transient(root)
+            dialog.grab_set()
+            dialog.resizable(False, False)
+            body = ttk.Frame(dialog, padding=14)
+            body.grid(sticky="nsew")
+            mode_var = tk.StringVar(value="standalone")
+            bridge_length_var = tk.StringVar(value="100")
+            landxml_path_var = tk.StringVar()
+            alignment_var = tk.StringVar()
+            bridge_start_var = tk.StringVar()
+            bridge_end_var = tk.StringVar()
+            divided_layout_var = tk.StringVar(value="Outside Opposing Clear Zone")
+            loaded_alignments = {}
+            accepted = {"value": False}
+
+            ttk.Label(body, text="Drawing Placement", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 6))
+            ttk.Radiobutton(body, text="Standalone (1 DXF unit = 1 foot)", variable=mode_var, value="standalone").grid(row=1, column=0, columnspan=3, sticky="w")
+            ttk.Radiobutton(body, text="LandXML project-coordinate overlay", variable=mode_var, value="landxml").grid(row=2, column=0, columnspan=3, sticky="w")
+            ttk.Label(body, text="Standalone Bridge Length (ft)").grid(row=3, column=0, sticky="w", pady=4)
+            bridge_length_entry = ttk.Entry(body, textvariable=bridge_length_var, width=24)
+            bridge_length_entry.grid(row=3, column=1, columnspan=2, sticky="ew", pady=4)
+            ttk.Label(body, text="LandXML File").grid(row=4, column=0, sticky="w", pady=4)
+            landxml_entry = ttk.Entry(body, textvariable=landxml_path_var, width=42)
+            landxml_entry.grid(row=4, column=1, sticky="ew", pady=4)
+
+            def browse_landxml():
+                path = filedialog.askopenfilename(parent=dialog, title="Select LandXML", filetypes=[("LandXML", "*.xml"), ("XML", "*.xml")])
+                if not path:
+                    return
+                try:
+                    alignments = guardrail_landxml.load_alignments(path)
+                except Exception as exc:
+                    messagebox.showerror("LandXML Error", str(exc), parent=dialog)
+                    return
+                loaded_alignments.clear()
+                for alignment in alignments:
+                    regions = " | ".join(alignment.civil_region_labels())
+                    label = f"{alignment.name}  ({regions})"
+                    loaded_alignments[label] = alignment
+                landxml_path_var.set(path)
+                alignment_combo.configure(values=list(loaded_alignments))
+                alignment_var.set(next(iter(loaded_alignments)))
+
+            browse_button = ttk.Button(body, text="Browse...", command=browse_landxml)
+            browse_button.grid(row=4, column=2, padx=(6, 0))
+            ttk.Label(body, text="Alignment").grid(row=5, column=0, sticky="w", pady=4)
+            alignment_combo = ttk.Combobox(body, textvariable=alignment_var, state="readonly", width=39)
+            alignment_combo.grid(row=5, column=1, columnspan=2, sticky="ew", pady=4)
+            ttk.Label(body, text="Bridge Start Station").grid(row=6, column=0, sticky="w", pady=4)
+            start_entry = ttk.Entry(body, textvariable=bridge_start_var)
+            start_entry.grid(row=6, column=1, columnspan=2, sticky="ew", pady=4)
+            ttk.Label(body, text="Bridge End Station").grid(row=7, column=0, sticky="w", pady=4)
+            end_entry = ttk.Entry(body, textvariable=bridge_end_var)
+            end_entry.grid(row=7, column=1, columnspan=2, sticky="ew", pady=4)
+            ttk.Label(body, text="GR-4 Divided Layout").grid(row=8, column=0, sticky="w", pady=4)
+            layout_combo = ttk.Combobox(body, textvariable=divided_layout_var, state="readonly", values=["Inside Opposing Clear Zone", "Outside Opposing Clear Zone"])
+            layout_combo.grid(row=8, column=1, columnspan=2, sticky="ew", pady=4)
+
+            mode_widgets = (landxml_entry, browse_button, alignment_combo, start_entry, end_entry)
+            def update_dxf_dialog(*_args):
+                landxml_mode = mode_var.get() == "landxml"
+                bridge_length_entry.configure(state="disabled" if landxml_mode else "normal")
+                for widget in mode_widgets:
+                    widget.configure(state=("normal" if landxml_mode else "disabled"))
+                alignment_combo.configure(state=("readonly" if landxml_mode else "disabled"))
+                layout_combo.configure(state=("readonly" if FACILITIES[facility_var.get()] == "divided_highway" else "disabled"))
+            mode_var.trace_add("write", update_dxf_dialog)
+
+            def accept_dialog():
+                try:
+                    if mode_var.get() == "standalone":
+                        if float(_first_number(bridge_length_var.get())) <= 0:
+                            raise ValueError("Standalone bridge length must be greater than zero.")
+                    else:
+                        if alignment_var.get() not in loaded_alignments:
+                            raise ValueError("Select a valid LandXML alignment.")
+                        selected_alignment = loaded_alignments[alignment_var.get()]
+                        accepted["bridge_start"] = selected_alignment.civil_to_internal(bridge_start_var.get())
+                        accepted["bridge_end"] = selected_alignment.civil_to_internal(bridge_end_var.get())
+                        if accepted["bridge_end"] <= accepted["bridge_start"]:
+                            raise ValueError("Bridge end station must be greater than bridge start station.")
+                    accepted["value"] = True
+                    dialog.destroy()
+                except Exception as exc:
+                    messagebox.showerror("DXF Input Error", str(exc), parent=dialog)
+
+            buttons = ttk.Frame(body)
+            buttons.grid(row=9, column=0, columnspan=3, sticky="e", pady=(10, 0))
+            ttk.Button(buttons, text="Cancel", command=dialog.destroy).pack(side="left", padx=4)
+            ttk.Button(buttons, text="Continue", command=accept_dialog, style="Primary.TButton").pack(side="left", padx=4)
+            update_dxf_dialog()
+            dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+            root.wait_window(dialog)
+            if not accepted["value"]:
+                status_var.set("DXF generation cancelled.")
+                return
+
+            facility = FACILITIES[facility_var.get()]
+            L2 = float(_first_number(L2_var.get()))
+            if LA_MODES[la_mode_var.get()] == "direct":
+                LA = float(_first_number(LA_var.get()))
+            else:
+                LA = compute_clear_zone(int(speed_var.get()), float(_first_number(adt_var.get())))
+            L1 = DEFAULT_L1_FT if l1_mode_var.get() == "Standard" else float(_first_number(L1_custom_var.get()))
+            terminal = DEFAULT_TERMINAL_SECTION_FT if term_mode_var.get() == "Default" else float(_first_number(term_custom_var.get()))
+            flare = flare_var.get()
+            flare_rate = 0.0 if flare == "Non-Flared" else float(flare.split(":")[0])
+            lane_width = float(_first_number(lane_width_var.get() if facility == "two_lane_two_way" else div_lane_w_var.get()))
+            lanes_this = 1 if facility == "two_lane_two_way" else int(float(_first_number(lanes_this_var.get())))
+            lanes_opposing = 1 if facility == "two_lane_two_way" else int(float(_first_number(lanes_opp_var.get())))
+            median_width = 0.0 if facility == "two_lane_two_way" else float(_first_number(median_w_var.get()))
+            required = (
+                max(results["A"], results["C"] if facility == "two_lane_two_way" else results["A"])
+                + guardrail_dxf.GATING_LENGTH
+                + guardrail_dxf.SHOULDER_TRANSITION_LENGTH
+                + guardrail_dxf.NORMAL_SHOULDER_EXTENSION
+            )
+            if mode_var.get() == "standalone":
+                bridge_start = required
+                bridge_end = bridge_start + float(_first_number(bridge_length_var.get()))
+                alignment = guardrail_dxf.LineAlignment(0.0, bridge_end + required)
+                insunits = 2
+            else:
+                bridge_start = accepted["bridge_start"]
+                bridge_end = accepted["bridge_end"]
+                alignment = loaded_alignments[alignment_var.get()]
+                unit_key = "".join(alignment.linear_unit.lower().split())
+                insunits = 21 if "ussurveyfoot" in unit_key or "usfoot" in unit_key else 2
+            drawing_model = guardrail_dxf.DrawingModel(
+                facility=facility, bridge_start=bridge_start, bridge_end=bridge_end, alignment=alignment,
+                A=results["A"], B=results["B"], C=results["C"], D=results["D"], L1=L1,
+                terminal=terminal, L2=L2, LA=LA, lane_width=lane_width, lanes_this=lanes_this,
+                lanes_opposing=lanes_opposing, median_width=median_width, flare_rate=flare_rate,
+                divided_layout="inside" if divided_layout_var.get().startswith("Inside") else "outside",
+                project=project_var.get().strip(), route=route_var.get().strip(),
+                insunits=insunits,
+            )
+            default_name = _safe_filename(
+                f"{project_var.get().strip()}_guardrail_plan" if project_var.get().strip() else "guardrail_plan"
+            ).rsplit(".", 1)[0]
+            out_path = filedialog.asksaveasfilename(
+                title="Save Guardrail Plan DXF", defaultextension=".dxf", initialfile=default_name,
+                filetypes=[("DXF files", "*.dxf"), ("All files", "*.*")],
+            )
+            if not out_path:
+                status_var.set("DXF generation cancelled.")
+                return
+            guardrail_dxf.export_guardrail_dxf(out_path, drawing_model)
+            status_var.set(f"DXF generated: {out_path}")
+            messagebox.showinfo("Guardrail Plan DXF Generated", f"DXF written to:\n{out_path}")
+        except Exception as e:
+            status_var.set("DXF generation failed.")
+            messagebox.showerror("DXF Generation Error", str(e))
+
     actions = ttk.Frame(content)
     actions.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(0, 8))
     actions.columnconfigure(0, weight=1)
     actions.columnconfigure(1, weight=1)
+    actions.columnconfigure(2, weight=1)
     ttk.Button(actions, text="Calculate", command=calculate_action, style="Primary.TButton").grid(
         row=0, column=0, sticky="ew", padx=(0, 6), ipady=5
     )
     ttk.Button(actions, text="Generate PDF", command=generate_pdf_action, style="Primary.TButton").grid(
-        row=0, column=1, sticky="ew", padx=(6, 0), ipady=5
+        row=0, column=1, sticky="ew", padx=6, ipady=5
+    )
+    ttk.Button(actions, text="Export DXF", command=generate_dxf_action, style="Primary.TButton").grid(
+        row=0, column=2, sticky="ew", padx=(6, 0), ipady=5
     )
     ttk.Label(content, textvariable=status_var, style="Subtitle.TLabel").grid(
         row=6, column=0, columnspan=2, sticky="w"
     )
 
+    calculation_input_vars = (
+        facility_var, speed_var, adt_var, la_mode_var, LA_var, slope_var, cz_pick_var,
+        cz_custom_var, L2_var, lane_width_var, add_dist_var, div_lane_w_var,
+        lanes_this_var, lanes_opp_var, median_w_var, l1_mode_var, L1_custom_var,
+        term_mode_var, term_custom_var, flare_var,
+    )
+    for variable in calculation_input_vars:
+        variable.trace_add("write", schedule_auto_calculation)
+
     update_conditional_fields()
+    schedule_auto_calculation()
     root.mainloop()
 
 

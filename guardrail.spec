@@ -17,7 +17,7 @@ a = Analysis(
         ("GR-4.pdf", "."),
         ("GR-4a.pdf", "."),
     ],
-    hiddenimports=collect_submodules("pypdf"),
+    hiddenimports=collect_submodules("pypdf") + collect_submodules("ezdxf"),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
