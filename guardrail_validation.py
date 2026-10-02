@@ -1,6 +1,10 @@
 """Basic numeric data checks shared by calculation and output paths."""
 
 import math
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from guardrail_models import CalculationInputs, RoadwayConfiguration
 
 
 def require_finite(**values: float) -> None:
@@ -63,11 +67,17 @@ def roadway_inputs(facility, L2, lane_width, lanes_this=1, lanes_opposing=1,
     require_finite(geometric_crossing=geometric_crossing)
     crossing = geometric_crossing if added_distance is None else added_distance
     require_nonnegative(added_distance=crossing)
-    opposing_offset = L2 + crossing
-    require_finite(L2_opp=opposing_offset)
+    resolved_offset = opposing_offset(L2, crossing)
     return dict(facility=facility, L2=L2, lane_width=lane_width, lanes_this=lanes_this,
                 lanes_opposing=lanes_opposing, median_width=median_width,
-                added_distance=crossing, L2_opp=opposing_offset)
+                added_distance=crossing, L2_opp=resolved_offset)
+
+
+def opposing_offset(L2: float, added_distance: float) -> float:
+    require_nonnegative(L2=L2, added_distance=added_distance)
+    value = L2 + added_distance
+    require_finite(L2_opp=value)
+    return value
 
 
 def require_drawing_crossing(roadway: dict) -> None:
@@ -81,3 +91,34 @@ def require_drawing_crossing(roadway: dict) -> None:
             "Use Calculated Distance, or supply matching dimensions before DXF export. "
             "A custom crossing distance remains available for calculation/PDF only."
         )
+
+
+def create_roadway(facility, L2, lane_width, lanes_this=1, lanes_opposing=1,
+                   median_width=0.0, added_distance=None) -> "RoadwayConfiguration":
+    """Resolve opposing offsets once at the input boundary, using established rules."""
+    from guardrail_design import Facility
+    from guardrail_models import DividedRoadwayInputs, RoadwayConfiguration
+    facility = Facility(facility)
+    state = roadway_inputs(facility.value, L2, lane_width, lanes_this, lanes_opposing,
+                           median_width, added_distance)
+    divided = (DividedRoadwayInputs(state["lanes_this"], state["lanes_opposing"], median_width)
+               if facility == Facility.DIVIDED_HIGHWAY else None)
+    return RoadwayConfiguration(facility, L2, lane_width, state["added_distance"], state["L2_opp"], divided)
+
+
+def validate_inputs(inputs: "CalculationInputs") -> None:
+    from guardrail_design import Facility
+    road, barrier = inputs.roadway, inputs.barrier
+    if not isinstance(road.facility, Facility):
+        raise ValueError("Roadway facility must be a Facility value.")
+    if road.facility == Facility.DIVIDED_HIGHWAY and road.divided is None:
+        raise ValueError("Divided roadway dimensions are required.")
+    state = road.as_dict()
+    expected = roadway_inputs(state["facility"], state["L2"], state["lane_width"],
+                              state["lanes_this"], state["lanes_opposing"], state["median_width"],
+                              state["added_distance"])
+    require_finite(L2_opp=road.L2_opp)
+    if road.L2_opp != expected["L2_opp"]:
+        raise ValueError("Opposing offset disagrees with the authoritative roadway input.")
+    calculation_inputs(inputs.speed, inputs.adt, barrier.LA, road.L2, road.L2_opp,
+                       barrier.L1, barrier.terminal, barrier.flare_rate)
