@@ -2,8 +2,9 @@
 __pycache__/
 *.py[cod]
 
-# Generated PyInstaller intermediates
+# Generated PyInstaller output
 build/
+dist/
 
 # Local backups and workspace-specific agent configuration
 Backup/

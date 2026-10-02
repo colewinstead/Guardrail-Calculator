@@ -16,7 +16,7 @@ Current application version: **V8.5**
 
 ## Use the Windows application
 
-Download and run [guardrail.exe](dist/guardrail.exe). No Python installation is required for the packaged application.
+Download and run [guardrail.exe](https://github.com/colewinstead/Guardrail-Calculator/releases/latest/download/guardrail.exe). No Python installation is required for the packaged application. See [Releases](https://github.com/colewinstead/Guardrail-Calculator/releases) for available versions.
 
 Enter the project and roadway information, select the design parameters, and choose:
 
@@ -79,7 +79,7 @@ py -m pip install pyinstaller
 py -m PyInstaller guardrail.spec -y
 ```
 
-The build produces `dist\guardrail.exe`, which is the executable linked above.
+The build produces `dist\guardrail.exe`. Build output is ignored by Git; upload the executable to a GitHub release to distribute a new version.
 
 ## Reference documents
 
