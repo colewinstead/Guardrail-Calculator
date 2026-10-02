@@ -1,16 +1,17 @@
 import math
 import re
 import os, sys
-import shutil
+import tempfile
 import guardrail_dxf
 import guardrail_landxml
 from io import BytesIO
 from datetime import datetime
 from typing import Optional
+from xml.sax.saxutils import escape
 APP_VERSION = "V8.5"
 from pypdf import PdfReader, PdfWriter
 def resource_path(rel_path: str) -> str:
-    base = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, rel_path)
 def merge_with_appendices(
     main_pdf_path: str,
@@ -148,16 +149,22 @@ TABLE_9_2_A = {
 
 
 def _first_number(s: str) -> float:
-    """
-    Pull the first numeric token out of a messy input like:
-      "6000, 2030" -> 6000
-      "  18'-1.75\"" -> 18  (so don't do that; use ft inputs)
-    """
-    s = s.replace(",", " ")
-    m = re.search(r"[-+]?\d*\.?\d+", s)
-    if not m:
-        raise ValueError("No number found")
-    return float(m.group(0))
+    """Parse one complete finite number, with optional grouped thousands/exponent."""
+    text = s.strip()
+    if not re.fullmatch(
+        r"[+-]?(?:(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]*)?|\.[0-9]+)"
+        r"(?:[eE][+-]?[0-9]+)?", text,
+    ):
+        raise ValueError("Enter a complete number; use commas only for thousands (for example, 6,000).")
+    value = float(text.replace(",", ""))
+    _require_finite(value=value)
+    return value
+
+
+def _require_finite(**values: float) -> None:
+    for name, value in values.items():
+        if not math.isfinite(value):
+            raise ValueError(f"{name} must be a finite number.")
 
 
 def prompt_float(msg: str, allow_blank: bool = False, default=None) -> float:
@@ -168,7 +175,7 @@ def prompt_float(msg: str, allow_blank: bool = False, default=None) -> float:
         try:
             return _first_number(s)
         except ValueError:
-            print("  Please enter a number (you can include commas; I'll use the first number).")
+            print("  Please enter a complete finite number (for example, 6000 or 6,000).")
 
 
 def prompt_choice(msg: str, options: list[str]) -> str:
@@ -242,6 +249,7 @@ def resolve_clear_zone(
     custom_value: Optional[float] = None,
 ) -> float:
     """Resolve a Table 9-2-A clear-zone selection without UI or console dependencies."""
+    _require_finite(speed=speed, adt=adt)
     if slope not in ("6:1_or_flatter", "5:1_to_4:1"):
         raise ValueError("Invalid clear-zone side-slope category.")
     if selection not in ("min", "mid", "max", "custom"):
@@ -256,7 +264,9 @@ def resolve_clear_zone(
         return float(mx)
     if custom_value is None:
         raise ValueError("A custom clear-zone value is required.")
-    return float(custom_value)
+    value = float(custom_value)
+    _require_finite(custom_clear_zone=value)
+    return value
 
 
 def choose_clear_zone(speed: float, adt: float) -> float:
@@ -290,6 +300,7 @@ def compute_x_min(speed: int, adt: float, LA: float, L2: float, L1: float, a_ove
     Returns (X_min, LR).
     - Flared equation + non-flared equation come from Table 9-6-A
     """
+    _require_finite(speed=speed, adt=adt, LA=LA, L2=L2, L1=L1, a_over_b=a_over_b)
     LR = get_lr(speed, adt)
 
     if a_over_b == 0.0:
@@ -331,6 +342,10 @@ def compute_guardrail_outputs(
     a_over_b: float,
 ) -> dict[str, float]:
     """Shared calc engine for CLI and GUI paths."""
+    _require_finite(
+        speed=speed, adt=adt, LA=LA, L2=L2, L2_opp=L2_opp,
+        L1=L1, terminal_section=terminal_section, a_over_b=a_over_b,
+    )
     b_over_a = 0.0 if a_over_b == 0 else 1.0 / a_over_b
 
     X_min_near, LR = compute_x_min(speed, adt, LA, L2, L1, a_over_b)
@@ -509,20 +524,28 @@ def write_calc_pdf(
     Returns True when every expected appendix document was appended.
     """
     out_path = os.path.abspath(out_path)
-    tmp_pdf = os.path.splitext(out_path)[0] + "_tmp.pdf"
     expected_appendices = appendix_manifest(pdf_data)
     available_appendices = [item for item in expected_appendices if os.path.exists(item[2])]
     appendices_complete = bool(include_appendix and len(available_appendices) == len(expected_appendices))
 
+    fd, tmp_pdf = tempfile.mkstemp(prefix=".guardrail-", suffix=".pdf", dir=os.path.dirname(out_path))
+    os.close(fd)  # Close before ReportLab opens the file, including on Windows.
+    temporary_paths = [tmp_pdf]
     try:
         render_data = dict(pdf_data)
         render_data["__include_appendix"] = False
         generate_pdf_calc_sheet(tmp_pdf, render_data)
 
         if include_appendix and available_appendices:
-            merge_with_appendices(tmp_pdf, available_appendices, out_path)
+            fd, completed_pdf = tempfile.mkstemp(
+                prefix=".guardrail-", suffix=".pdf", dir=os.path.dirname(out_path),
+            )
+            os.close(fd)
+            temporary_paths.append(completed_pdf)
+            merge_with_appendices(tmp_pdf, available_appendices, completed_pdf)
         else:
-            shutil.move(tmp_pdf, out_path)
+            completed_pdf = tmp_pdf
+        os.replace(completed_pdf, out_path)
 
         if auto_open:
             try:
@@ -532,11 +555,12 @@ def write_calc_pdf(
 
         return appendices_complete
     finally:
-        try:
-            if os.path.exists(tmp_pdf):
-                os.remove(tmp_pdf)
-        except OSError:
-            pass
+        for path in temporary_paths:
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except OSError:
+                pass
 
 
 # =========================
@@ -1014,7 +1038,7 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
 
     def value(key, default=""):
         raw = data.get(key, default)
-        return "" if raw is None else str(raw)
+        return "" if raw is None else escape(str(raw))
 
     def section(title):
         return Paragraph(title, styles["SectionHeading"])

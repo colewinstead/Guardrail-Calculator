@@ -10,8 +10,22 @@ from pathlib import Path
 
 
 def _tag(node) -> str: return node.tag.rsplit("}", 1)[-1]
+
+
+def _finite_float(value: str | float, name: str) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a number.") from exc
+    if not math.isfinite(number):
+        raise ValueError(f"{name} must be finite.")
+    return number
+
+
 def _point(text: str) -> tuple[float, float]:
-    values = [float(v) for v in text.split()]
+    values = [_finite_float(v, "Coordinate") for v in text.split()]
+    if len(values) not in (2, 3):
+        raise ValueError("LandXML points require northing, easting, and optional elevation.")
     # LandXML is Northing, Easting; CAD is X=Easting, Y=Northing.
     return values[1], values[0]
 
@@ -20,6 +34,48 @@ def _point(text: str) -> tuple[float, float]:
 class Line: start: tuple[float, float]; end: tuple[float, float]; length: float
 @dataclass(frozen=True)
 class Arc: start: tuple[float, float]; end: tuple[float, float]; center: tuple[float, float]; radius: float; length: float; rotation: str
+
+
+# Feet: permit normal export rounding, independently of absolute project coordinates.
+GEOMETRY_ABS_TOLERANCE = 1e-4
+GEOMETRY_REL_TOLERANCE = 1e-6
+
+
+def _validate_segment(segment: Line | Arc, previous_end: tuple[float, float] | None) -> None:
+    if segment.length < 0:
+        raise ValueError("Segment length cannot be negative.")
+    if previous_end is not None and math.dist(previous_end, segment.start) > GEOMETRY_ABS_TOLERANCE:
+        raise ValueError("Segment start is disconnected from the preceding segment end.")
+    chord = math.dist(segment.start, segment.end)
+    if segment.length == 0 and chord > GEOMETRY_ABS_TOLERANCE:
+        raise ValueError("Zero-length geometry has differing endpoints.")
+    if isinstance(segment, Line):
+        if not math.isclose(segment.length, chord, rel_tol=GEOMETRY_REL_TOLERANCE,
+                            abs_tol=GEOMETRY_ABS_TOLERANCE):
+            raise ValueError("Line length is inconsistent with its horizontal endpoints.")
+        return
+
+    if segment.radius <= 0:
+        raise ValueError("Arc radius must be greater than zero.")
+    if segment.rotation not in {"cw", "ccw"}:
+        raise ValueError("Arc rotation must be 'cw' or 'ccw'.")
+    for point in (segment.start, segment.end):
+        if not math.isclose(math.dist(point, segment.center), segment.radius,
+                            rel_tol=GEOMETRY_REL_TOLERANCE, abs_tol=GEOMETRY_ABS_TOLERANCE):
+            raise ValueError("Arc endpoint is inconsistent with its center and radius.")
+    start_angle = math.atan2(segment.start[1] - segment.center[1], segment.start[0] - segment.center[0])
+    end_angle = math.atan2(segment.end[1] - segment.center[1], segment.end[0] - segment.center[0])
+    sign = 1 if segment.rotation == "ccw" else -1
+    sweep = (sign * (end_angle - start_angle)) % math.tau
+    # Coincident endpoints can represent a complete circle, as well as a zero-length arc.
+    if chord <= GEOMETRY_ABS_TOLERANCE and math.isclose(
+        segment.length, math.tau * segment.radius,
+        rel_tol=GEOMETRY_REL_TOLERANCE, abs_tol=GEOMETRY_ABS_TOLERANCE,
+    ):
+        sweep = math.tau
+    if not math.isclose(segment.length, sweep * segment.radius,
+                        rel_tol=GEOMETRY_REL_TOLERANCE, abs_tol=GEOMETRY_ABS_TOLERANCE):
+        raise ValueError("Arc length is inconsistent with its endpoints, radius, and declared rotation.")
 
 
 @dataclass
@@ -32,6 +88,7 @@ class Alignment:
 
     def station_range(self): return self.start_station, self.start_station + sum(s.length for s in self.segments)
     def _locate(self, station):
+        station = _finite_float(station, "Station")
         lo, hi = self.station_range()
         if station < lo - 1e-7 or station > hi + 1e-7: raise ValueError(f"Station {station:.3f} is outside alignment {self.name} ({lo:.3f} to {hi:.3f}).")
         remaining = max(0.0, station - lo)
@@ -41,10 +98,11 @@ class Alignment:
         return self.segments[-1], self.segments[-1].length
     @staticmethod
     def _arc_sign(seg: Arc):
-        expected = seg.length / seg.radius
-        a = math.atan2(seg.start[1]-seg.center[1], seg.start[0]-seg.center[0]); b = math.atan2(seg.end[1]-seg.center[1], seg.end[0]-seg.center[0])
-        ccw, cw = (b-a) % math.tau, (a-b) % math.tau
-        return 1 if abs(ccw-expected) <= abs(cw-expected) else -1
+        if seg.rotation == "cw":
+            return -1
+        if seg.rotation == "ccw":
+            return 1
+        raise ValueError("Arc rotation must be 'cw' or 'ccw'.")
     def xy_at_station(self, station):
         seg, distance = self._locate(station)
         if isinstance(seg, Line):
@@ -83,6 +141,7 @@ def parse_station(value: str | float) -> tuple[float, int | None]:
     if "+" in station_text:
         left, right = station_text.split("+", 1); station = float(left) * 100.0 + float(right)
     else: station = float(station_text)
+    station = _finite_float(station, "Station")
     return station, int(region_text) if region_text else None
 
 
@@ -97,7 +156,11 @@ def normalize_station_equations(equations: list[dict] | None) -> list[dict[str, 
             back = float(equation.get("staBack", equation.get("back", "")))
             ahead = float(equation.get("staAhead", equation.get("ahead", "")))
             internal = float(equation.get("staInternal", equation.get("internal", back)))
-        except (TypeError, ValueError): continue
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Invalid LandXML station equation.") from exc
+        _finite_float(back, "Station equation back")
+        _finite_float(ahead, "Station equation ahead")
+        _finite_float(internal, "Station equation internal")
         result.append({"internal": internal, "back": back, "ahead": ahead})
     return sorted(result, key=lambda item: item["internal"])
 
@@ -124,10 +187,16 @@ def civil_to_internal_station(value: str | float, equations: list[dict] | None,
             f"Station {format_station(station)}{suffix} is outside this alignment. "
             f"Valid civil-station regions: {ranges}."
         )
+    if requested_region is None and any(
+        abs(candidate - candidates[0][1]) > 1e-6 for _, candidate in candidates[1:]
+    ):
+        regions = ", ".join(f"R{region}" for region, _ in candidates)
+        raise ValueError(f"Ambiguous civil station {value}; specify a station region ({regions}).")
     return candidates[0][1]
 
 
 def internal_to_civil_station(station: float, equations: list[dict] | None) -> float:
+    station = _finite_float(station, "Station")
     civil = station
     for equation in normalize_station_equations(equations):
         if station >= equation["internal"]: civil = station + equation["ahead"] - equation["internal"]
@@ -175,8 +244,28 @@ def load_alignments(path: str | Path) -> list[Alignment]:
             tag = _tag(child)
             if tag == "Spiral": raise ValueError(f"Alignment '{node.get('name','')}' contains spirals, which are not supported.")
             children = {_tag(n): (n.text or "") for n in child}
-            if tag == "Line": segments.append(Line(_point(children["Start"]), _point(children["End"]), float(child.get("length", 0))))
-            elif tag == "Curve": segments.append(Arc(_point(children["Start"]), _point(children["End"]), _point(children["Center"]), float(child.get("radius",0)), float(child.get("length",0)), child.get("rot","ccw")))
-        if segments: result.append(Alignment(node.get("name", "Unnamed alignment"), float(node.get("staStart",0)), segments, unit, station_equations))
+            if tag not in {"Line", "Curve"}:
+                continue
+            try:
+                start, end = _point(children["Start"]), _point(children["End"])
+                length = _finite_float(child.get("length", 0), "Segment length")
+                if tag == "Line":
+                    segment = Line(start, end, length)
+                else:
+                    segment = Arc(start, end, _point(children["Center"]),
+                                  _finite_float(child.get("radius", 0), "Arc radius"),
+                                  length, child.get("rot", "ccw"))
+                _validate_segment(segment, segments[-1].end if segments else None)
+            except (KeyError, ValueError) as exc:
+                raise ValueError(
+                    f"Alignment '{node.get('name', '')}', segment {len(segments) + 1} ({tag}): {exc}"
+                ) from exc
+            segments.append(segment)
+        if segments:
+            start_station = _finite_float(node.get("staStart", 0), "Alignment start station")
+            if not math.isfinite(start_station + sum(segment.length for segment in segments)):
+                raise ValueError("Alignment station range must be finite.")
+            normalize_station_equations(station_equations)
+            result.append(Alignment(node.get("name", "Unnamed alignment"), start_station, segments, unit, station_equations))
     if not result: raise ValueError("LandXML contains no usable line/arc alignments.")
     return result
