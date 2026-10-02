@@ -16,7 +16,7 @@ Current application version: **V8.5**
 
 ## Use the Windows application
 
-Download and run [guardrail.exe](guardrail.exe). No Python installation is required for the packaged application.
+Download and run [guardrail.exe](dist/guardrail.exe). No Python installation is required for the packaged application.
 
 Enter the project and roadway information, select the design parameters, and choose:
 
@@ -49,13 +49,19 @@ Enter the project and roadway information, select the design parameters, and cho
 Install the Python dependencies:
 
 ```powershell
-py -m pip install pypdf reportlab ezdxf
+py -m pip install -r requirements.txt
 ```
 
 Run the application from the project folder:
 
 ```powershell
 py guardrail_V8.5.py
+```
+
+Run the DXF and LandXML tests with:
+
+```powershell
+py -m unittest -v test_guardrail_dxf
 ```
 
 Keep these reference PDFs in the same folder as the script so they can be embedded in generated calculation packages:
@@ -73,7 +79,7 @@ py -m pip install pyinstaller
 py -m PyInstaller guardrail.spec -y
 ```
 
-The build produces `dist\guardrail.exe`. Copy it to the project root if you want to replace the executable published in this repository.
+The build produces `dist\guardrail.exe`, which is the executable linked above.
 
 ## Reference documents
 
