@@ -5,7 +5,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Callable, Protocol
+
+import guardrail_validation as validation
 
 
 LAYERS = {
@@ -22,6 +24,7 @@ GATING_LENGTH = 12.5
 SHOULDER_FLARE_LENGTH = 75.0
 SHOULDER_TRANSITION_LENGTH = 150.0
 NORMAL_SHOULDER_EXTENSION = 50.0
+PATH_TOLERANCE = 0.01  # Maximum sampled chord deviation, in feet.
 TEXT_HEIGHT = 2.5
 ENGINEERING_TEXT_STYLE = "Engineering Regular"
 ENGINEERING_FONT_FILE = "EngineeringRegular.ttf"
@@ -43,6 +46,11 @@ class Alignment(Protocol):
 class LineAlignment:
     start: float
     end: float
+
+    def __post_init__(self) -> None:
+        validation.require_finite(start=self.start, end=self.end)
+        if self.end <= self.start:
+            raise ValueError("Alignment end must be greater than start.")
 
     def station_range(self) -> tuple[float, float]: return self.start, self.end
     def xy_at_station(self, station: float) -> tuple[float, float]:
@@ -75,6 +83,7 @@ class DrawingModel:
     project: str = ""
     route: str = ""
     insunits: int = 2
+    opposing_added_distance: float | None = None
 
 
 class DxfWriter:
@@ -86,6 +95,7 @@ class DxfWriter:
     def _append(self, *pairs: object) -> None: self.entities.extend(str(v) for v in pairs)
 
     def add_line(self, p1: tuple[float, float], p2: tuple[float, float], layer: str) -> None:
+        validation.require_finite(x1=p1[0], y1=p1[1], x2=p2[0], y2=p2[1])
         self.records.append(("LINE", float(p1[0]), float(p1[1]), float(p2[0]), float(p2[1]), layer))
         self._append(0, "LINE", 8, layer, 10, round(p1[0], 6), 20, round(p1[1], 6), 30, 0,
                      11, round(p2[0], 6), 21, round(p2[1], 6), 31, 0)
@@ -206,26 +216,90 @@ def _upright_angle(tx: float, ty: float) -> float:
 
 
 def _point(alignment: Alignment, station: float, offset: float) -> tuple[float, float]:
+    validation.require_finite(station=station, offset=offset)
     x, y = alignment.xy_at_station(station); tx, ty = alignment.tangent_at_station(station)
-    return x - ty * offset, y + tx * offset
+    point = x - ty * offset, y + tx * offset
+    validation.require_finite(x=point[0], y=point[1], tx=tx, ty=ty)
+    return point
 
 
-def _path(alignment: Alignment, start: float, end: float, offset: float, step: float = 10.0) -> list[tuple[float, float]]:
-    count = max(1, int(math.ceil(abs(end - start) / step)))
-    return [_point(alignment, start + (end - start) * i / count, offset) for i in range(count + 1)]
+def _path(alignment: Alignment, start: float, end: float,
+          offset: float | Callable[[float], float], step: float = 10.0,
+          *, count: int | None = None) -> list[tuple[float, float]]:
+    """Sample constant/variable alignment offsets, retaining legacy straight vertices."""
+    validation.require_finite(start=start, end=end)
+    validation.require_positive(step=step)
+    count = count or max(1, int(math.ceil(abs(end - start) / step)))
+    stations = [start + (end - start) * i / count for i in range(count + 1)]
+    if hasattr(alignment, "geometry_breakpoints"):
+        stations.extend(s for s in alignment.geometry_breakpoints() if min(start, end) < s < max(start, end))
+    stations = sorted(set(stations), reverse=end < start) if start != end else stations
+
+    def point(station):
+        return _point(alignment, station, offset(station) if callable(offset) else offset)
+
+    def refine(a, b, pa, pb, depth=0):
+        for ratio in (.25, .5, .75):
+            actual = point(a + (b - a) * ratio)
+            chord = (pa[0] + (pb[0] - pa[0]) * ratio, pa[1] + (pb[1] - pa[1]) * ratio)
+            if math.dist(actual, chord) > PATH_TOLERANCE:
+                if depth >= 20:
+                    raise ValueError("Alignment offset cannot be sampled within DXF tolerance; check geometry joins.")
+                mid = (a + b) / 2
+                pm = point(mid)
+                return refine(a, mid, pa, pm, depth + 1) + refine(mid, b, pm, pb, depth + 1)
+        return [pb]
+
+    points = [point(stations[0])]
+    for a, b in zip(stations, stations[1:]):
+        points.extend(refine(a, b, points[-1], point(b)))
+    return points
+
+
+def _taper_path(alignment: Alignment, start: float, end: float,
+                offset_start: float, offset_end: float, count: int = 1) -> list[tuple[float, float]]:
+    def offset(station):
+        ratio = 0 if start == end else (station - start) / (end - start)
+        return offset_start + (offset_end - offset_start) * ratio
+    return _path(alignment, start, end, offset, count=count)
+
+
+def validate_supported_installations(model: DrawingModel) -> None:
+    """Reject undefined drawing treatments without changing calculation behavior."""
+    if model.terminal == 0:
+        raise ValueError("DXF terminal length must be greater than zero; zero-terminal drawing treatment requires MDOT verification. Calculations and PDF output may still use zero.")
+    validation.require_positive(terminal=model.terminal)
+    lengths = [("A", model.A)]
+    if model.facility == "two_lane_two_way":
+        lengths.append(("C", model.C))
+    for label, length in lengths:
+        if length + GATING_LENGTH < SHOULDER_FLARE_LENGTH - 1e-6:
+            raise ValueError(f"{label} installation has insufficient length for the 75-ft clear-zone taper; short-installation DXF treatment requires engineering verification.")
 
 
 def validate_model(model: DrawingModel) -> None:
+    validation.require_finite(bridge_start=model.bridge_start, bridge_end=model.bridge_end)
+    validation.require_nonnegative(B=model.B, D=model.D, L1=model.L1, terminal=model.terminal,
+                                   L2=model.L2, median_width=model.median_width, flare=model.flare_rate)
+    validation.require_positive(A=model.A, C=model.C, LA=model.LA)
+    roadway = validation.roadway_inputs(model.facility, model.L2, model.lane_width,
+                                       model.lanes_this, model.lanes_opposing, model.median_width,
+                                       model.opposing_added_distance)
+    if model.opposing_added_distance is not None:
+        validation.require_drawing_crossing(roadway)
+    if model.divided_layout not in {"inside", "outside"}:
+        raise ValueError("Invalid divided highway layout.")
+    validation.installation_totals(model.A, model.B, model.C, model.D, model.L1, model.terminal)
+    validate_supported_installations(model)
     if model.bridge_end <= model.bridge_start: raise ValueError("Bridge end station must be greater than bridge start station.")
     if model.L2 < 0 or model.LA <= 0 or model.LA < model.L2:
         raise ValueError("Drawing widths require LA (W) to be greater than or equal to L2.")
-    if model.lane_width <= 0 or model.lanes_this < 1 or model.lanes_opposing < 1:
-        raise ValueError("Lane width and lane counts must be positive.")
     required = (
-        max(model.A, model.C if model.facility == "two_lane_two_way" else model.A)
+        max(model.A, model.C)
         + GATING_LENGTH + SHOULDER_TRANSITION_LENGTH + NORMAL_SHOULDER_EXTENSION
     )
     lo, hi = model.alignment.station_range()
+    validation.require_finite(alignment_start=lo, alignment_end=hi, required=required)
     if model.bridge_start - required < lo - 1e-6:
         raise ValueError(f"Alignment needs {required:.3f} ft before bridge start for guardrail and shoulder transition.")
     if model.bridge_end + required > hi + 1e-6:
@@ -233,6 +307,7 @@ def validate_model(model: DrawingModel) -> None:
 
 
 def _dimension(writer: DxfWriter, alignment: Alignment, s1: float, s2: float, offset: float, label: str) -> None:
+    # Labels describe alignment station distances, not chords or offset-path lengths.
     p1, p2 = _point(alignment, s1, offset), _point(alignment, s2, offset)
     writer.add_line(p1, p2, LAYERS["dimension"])
     for station, p in ((s1, p1), (s2, p2)):
@@ -317,25 +392,11 @@ def _installation(writer: DxfWriter, m: DrawingModel, bridge_station: float, out
     gating_rail_offset = tapered_rail_offset + side * TERMINAL_LATERAL_FLARE
 
     writer.add_polyline(_path(m.alignment, at(0), at(flare_start), rail_offset), LAYERS["rail"])
-    flare_points = []
-    for i in range(17):
-        ratio = i / 16
-        station_distance = flare_start + flare_length * ratio
-        flare_points.append(_point(m.alignment, at(station_distance), rail_offset + side * flare_delta * ratio))
+    flare_points = _taper_path(m.alignment, at(flare_start), at(flare_end), rail_offset, tapered_rail_offset, 16)
     writer.add_polyline(flare_points, LAYERS["rail"])
-    terminal_points = []
-    for i in range(9):
-        ratio = i / 8
-        distance_into_terminal = m.terminal * ratio
-        lateral = TERMINAL_END_LATERAL_FLARE * ratio
-        terminal_points.append(_point(m.alignment, at(flare_end + distance_into_terminal), tapered_rail_offset + side * lateral))
+    terminal_points = _taper_path(m.alignment, at(flare_end), at(terminal_end), tapered_rail_offset, terminal_rail_offset, 8)
     writer.add_polyline(terminal_points, LAYERS["terminal"])
-    gating_points = []
-    for i in range(5):
-        ratio = i / 4
-        distance_into_gating = GATING_LENGTH * ratio
-        lateral = TERMINAL_END_LATERAL_FLARE + GATING_LATERAL_FLARE * ratio
-        gating_points.append(_point(m.alignment, at(terminal_end + distance_into_gating), tapered_rail_offset + side * lateral))
+    gating_points = _taper_path(m.alignment, at(terminal_end), at(gate_end), terminal_rail_offset, gating_rail_offset, 4)
     writer.add_polyline(gating_points, LAYERS["gating"])
 
     def rail_offset_at(distance: float) -> float:
@@ -380,14 +441,12 @@ def _installation(writer: DxfWriter, m: DrawingModel, bridge_station: float, out
     )
     terminal_shoulder_offset = terminal_rail_offset + side * terminal_shoulder_clearance
     gating_shoulder_offset = gating_rail_offset + side * TERMINAL_SHOULDER_CLEARANCE
-    shoulder_points = [
-        _point(m.alignment, at(0), guardrail_shoulder_offset),
-        _point(m.alignment, at(flare_start), guardrail_shoulder_offset),
-        _point(m.alignment, at(flare_end), tapered_shoulder_offset),
-        _point(m.alignment, at(terminal_end), terminal_shoulder_offset),
-        _point(m.alignment, at(gate_end), gating_shoulder_offset),
-        _point(m.alignment, at(gate_end + SHOULDER_TRANSITION_LENGTH), etl_offset),
-    ]
+    shoulder_vertices = [(0, guardrail_shoulder_offset), (flare_start, guardrail_shoulder_offset),
+                         (flare_end, tapered_shoulder_offset), (terminal_end, terminal_shoulder_offset),
+                         (gate_end, gating_shoulder_offset), (gate_end + SHOULDER_TRANSITION_LENGTH, etl_offset)]
+    shoulder_points = [_point(m.alignment, at(0), guardrail_shoulder_offset)]
+    for (a, oa), (b, ob) in zip(shoulder_vertices, shoulder_vertices[1:]):
+        shoulder_points.extend(_taper_path(m.alignment, at(a), at(b), oa, ob)[1:])
     writer.add_polyline(shoulder_points, LAYERS["shoulder"])
 
     gating_width_from_etl = abs(gating_shoulder_offset) - road_edge
@@ -397,14 +456,9 @@ def _installation(writer: DxfWriter, m: DrawingModel, bridge_station: float, out
     )
     normal_tie_distance = gate_end + SHOULDER_TRANSITION_LENGTH * normal_tie_ratio
     writer.add_polyline(
-        [
-            _point(m.alignment, at(normal_tie_distance), normal_shoulder_offset),
-            _point(
-                m.alignment,
-                at(gate_end + SHOULDER_TRANSITION_LENGTH + NORMAL_SHOULDER_EXTENSION),
-                normal_shoulder_offset,
-            ),
-        ],
+        _path(m.alignment, at(normal_tie_distance),
+              at(gate_end + SHOULDER_TRANSITION_LENGTH + NORMAL_SHOULDER_EXTENSION),
+              normal_shoulder_offset, count=1),
         LAYERS["normal_shoulder"],
     )
 
@@ -430,15 +484,10 @@ def _installation(writer: DxfWriter, m: DrawingModel, bridge_station: float, out
     clear_zone_join_distance = gate_end - SHOULDER_FLARE_LENGTH
     shoulder_join_offset = shoulder_offset_at(clear_zone_join_distance)
     writer.add_polyline(
-        [
-            _point(
-                m.alignment,
-                at(gate_end + SHOULDER_TRANSITION_LENGTH + NORMAL_SHOULDER_EXTENSION),
-                w_offset,
-            ),
-            _point(m.alignment, at(gate_end), w_offset),
-            _point(m.alignment, at(clear_zone_join_distance), shoulder_join_offset),
-        ],
+        _path(m.alignment, at(gate_end + SHOULDER_TRANSITION_LENGTH + NORMAL_SHOULDER_EXTENSION),
+              at(gate_end), w_offset, count=1)
+        + _taper_path(m.alignment, at(gate_end), at(clear_zone_join_distance),
+                      w_offset, shoulder_join_offset)[1:],
         LAYERS["foreslope"],
     )
     # Keep LA horizontal and adjacent to the full-width clear-zone line instead
@@ -513,7 +562,7 @@ def export_guardrail_dxf(path: str | Path, model: DrawingModel) -> DxfWriter:
             if model.divided_layout == "outside":
                 median_offset = -model.median_width / 2
                 taper_end = bridge_station + outward * min(model.A, 25.0 * max(2.0, model.L2))
-                w.add_polyline([_point(model.alignment, bridge_station, median_offset), _point(model.alignment, taper_end, median_offset - 2.0)], LAYERS["shoulder"])
+                w.add_polyline(_taper_path(model.alignment, bridge_station, taper_end, median_offset, median_offset - 2.0), LAYERS["shoulder"])
         mid = bridge_station + outward * min(80.0, model.A / 2)
         _arrow(w, model.alignment, mid, model.lane_width / 2, -outward)
         _arrow(w, model.alignment, mid, -model.lane_width / 2, outward)

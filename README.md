@@ -37,6 +37,14 @@ Enter the project and roadway information, select the design parameters, and cho
 - The 150-foot shoulder flare is drawn as a continuous line and ties directly into the ETL. The normal shoulder at ETL + L2 intersects that taper before its endpoint and continues on the separate dashed `GR_NORMAL_SHOULDER` layer without a called-out tie length.
 - All DXF labels and dimensions use the MDOT `Engineering Regular` text style backed by `EngineeringRegular.ttf`, including TrueType family metadata for correct OpenRoads/MicroStation font resolution.
 
+### Source application export validation
+
+- Curved longitudinal features follow alignment offsets with a 0.01-foot sampling tolerance and include geometry breakpoints. Longitudinal dimension labels retain alignment station distances, rather than measuring drawn chords or offset paths.
+- DXF export requires a positive terminal length and enough installation length for the complete 75-foot clear-zone taper before the bridge. Unsupported short or zero-terminal installations are rejected; calculations and PDFs still allow a zero terminal.
+- For divided highways, **Use Calculated Distance** links the opposing distance to lane counts, lane width, and median width. Subsequent dimension edits update that distance automatically. Uncheck the link to enter a custom calculation/PDF distance; DXF export requires it to match the drawing dimensions.
+- LandXML imports report rejected alignments individually and retain completely valid line/arc alignments. Unsupported geometry is never silently omitted. Selecting another file clears the prior geometry, including when loading fails.
+- The existing DXF assumption `LA >= L2` remains unchanged and requires engineering verification. It is not imposed on the calculation engine or PDF output.
+
 ## Run from source
 
 ### Requirements
@@ -58,10 +66,10 @@ Run the application from the project folder:
 py guardrail_V8.5.py
 ```
 
-Run the DXF and LandXML tests with:
+Run the complete regression suite with:
 
 ```powershell
-py -m unittest -v test_guardrail_dxf
+py -m unittest discover -v
 ```
 
 Keep these reference PDFs in the same folder as the script so they can be embedded in generated calculation packages:

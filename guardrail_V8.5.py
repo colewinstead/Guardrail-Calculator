@@ -1,16 +1,18 @@
 import math
 import re
 import os, sys
-import shutil
+import tempfile
 import guardrail_dxf
 import guardrail_landxml
+import guardrail_validation as validation
 from io import BytesIO
 from datetime import datetime
 from typing import Optional
+from xml.sax.saxutils import escape
 APP_VERSION = "V8.5"
 from pypdf import PdfReader, PdfWriter
 def resource_path(rel_path: str) -> str:
-    base = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, rel_path)
 def merge_with_appendices(
     main_pdf_path: str,
@@ -148,16 +150,20 @@ TABLE_9_2_A = {
 
 
 def _first_number(s: str) -> float:
-    """
-    Pull the first numeric token out of a messy input like:
-      "6000, 2030" -> 6000
-      "  18'-1.75\"" -> 18  (so don't do that; use ft inputs)
-    """
-    s = s.replace(",", " ")
-    m = re.search(r"[-+]?\d*\.?\d+", s)
-    if not m:
-        raise ValueError("No number found")
-    return float(m.group(0))
+    """Parse one complete finite number, with optional grouped thousands/exponent."""
+    text = s.strip()
+    if not re.fullmatch(
+        r"[+-]?(?:(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]*)?|\.[0-9]+)"
+        r"(?:[eE][+-]?[0-9]+)?", text,
+    ):
+        raise ValueError("Enter a complete number; use commas only for thousands (for example, 6,000).")
+    value = float(text.replace(",", ""))
+    _require_finite(value=value)
+    return value
+
+
+def _require_finite(**values: float) -> None:
+    validation.require_finite(**values)
 
 
 def prompt_float(msg: str, allow_blank: bool = False, default=None) -> float:
@@ -168,7 +174,7 @@ def prompt_float(msg: str, allow_blank: bool = False, default=None) -> float:
         try:
             return _first_number(s)
         except ValueError:
-            print("  Please enter a number (you can include commas; I'll use the first number).")
+            print("  Please enter a complete finite number (for example, 6000 or 6,000).")
 
 
 def prompt_choice(msg: str, options: list[str]) -> str:
@@ -197,6 +203,7 @@ def fmt_ft_in(x_ft: float) -> str:
 
 
 def adt_bucket_index(adt: float) -> int:
+    validation.require_nonnegative(ADT=adt)
     # Matches Table 9-6-A columns: 10,000 ; 5,000-10,000 ; 1,000-5,000 ; under 1,000
     if adt >= 10000:
         return 0
@@ -208,11 +215,15 @@ def adt_bucket_index(adt: float) -> int:
 
 
 def get_lr(speed_mph: int, adt: float) -> float:
+    validation.require_positive(speed=speed_mph)
+    if speed_mph not in TABLE_9_6_A:
+        raise ValueError("Design speed must match a Table 9-6-A speed.")
     idx = adt_bucket_index(adt)
     return float(TABLE_9_6_A[speed_mph]["LR"][idx])
 
 
 def speed_group_clearzone(speed: float) -> str:
+    validation.require_positive(speed=speed)
     if speed <= 40:
         return "40_or_less"
     if 45 <= speed <= 50:
@@ -225,6 +236,7 @@ def speed_group_clearzone(speed: float) -> str:
 
 
 def adt_group_clearzone(adt: float) -> str:
+    validation.require_nonnegative(ADT=adt)
     if adt < 750:
         return "under_750"
     if adt <= 1500:
@@ -242,6 +254,7 @@ def resolve_clear_zone(
     custom_value: Optional[float] = None,
 ) -> float:
     """Resolve a Table 9-2-A clear-zone selection without UI or console dependencies."""
+    _require_finite(speed=speed, adt=adt)
     if slope not in ("6:1_or_flatter", "5:1_to_4:1"):
         raise ValueError("Invalid clear-zone side-slope category.")
     if selection not in ("min", "mid", "max", "custom"):
@@ -256,7 +269,9 @@ def resolve_clear_zone(
         return float(mx)
     if custom_value is None:
         raise ValueError("A custom clear-zone value is required.")
-    return float(custom_value)
+    value = float(custom_value)
+    validation.require_positive(custom_clear_zone=value)
+    return value
 
 
 def choose_clear_zone(speed: float, adt: float) -> float:
@@ -278,7 +293,10 @@ def choose_clear_zone(speed: float, adt: float) -> float:
 
 
 def round_up_to_increment(x: float, inc: float) -> float:
+    _require_finite(x=x)
+    validation.require_positive(increment=inc)
     quotient = x / inc
+    _require_finite(quotient=quotient)
     nearest = round(quotient)
     if math.isclose(quotient, nearest, rel_tol=0.0, abs_tol=1e-9):
         return nearest * inc
@@ -290,12 +308,14 @@ def compute_x_min(speed: int, adt: float, LA: float, L2: float, L1: float, a_ove
     Returns (X_min, LR).
     - Flared equation + non-flared equation come from Table 9-6-A
     """
+    validation.calculation_inputs(speed, adt, LA, L2, L2, L1, 0, a_over_b)
     LR = get_lr(speed, adt)
 
     if a_over_b == 0.0:
         # Non-flared design:
         # X = LR (LA - L2) / LA
         X_min = (LR * (LA - L2)) / LA
+        _require_finite(X_min=X_min)
         return X_min, LR
 
     # Flared design:
@@ -304,6 +324,7 @@ def compute_x_min(speed: int, adt: float, LA: float, L2: float, L1: float, a_ove
     numerator = LA + (b_over_a * L1) - L2
     denom = b_over_a + (LA / LR)
     X_min = numerator / denom
+    _require_finite(X_min=X_min)
     return X_min, LR
 
 
@@ -314,6 +335,8 @@ def compute_x_design_from_xmin(X_min: float, L1: float) -> tuple[float, float, f
       - round up to nearest 12.5 ft
       - add L1 back
     """
+    _require_finite(X_min=X_min)
+    validation.require_nonnegative(L1=L1)
     flared_portion = max(0.0, X_min - L1)
     flared_portion_rounded = round_up_to_increment(flared_portion, INCR_GUARDRAIL_FT)
     X_design = flared_portion_rounded + L1
@@ -331,6 +354,7 @@ def compute_guardrail_outputs(
     a_over_b: float,
 ) -> dict[str, float]:
     """Shared calc engine for CLI and GUI paths."""
+    validation.calculation_inputs(speed, adt, LA, L2, L2_opp, L1, terminal_section, a_over_b)
     b_over_a = 0.0 if a_over_b == 0 else 1.0 / a_over_b
 
     X_min_near, LR = compute_x_min(speed, adt, LA, L2, L1, a_over_b)
@@ -351,7 +375,7 @@ def compute_guardrail_outputs(
     X_design_opp = C
     C_plus_gating = C + DEFAULT_GATING_FT
 
-    return {
+    outputs = {
         "LR": LR,
         "b_over_a": b_over_a,
         "X_min_near": X_min_near,
@@ -371,6 +395,8 @@ def compute_guardrail_outputs(
         "D": D,
         "C_plus_gating": C_plus_gating,
     }
+    _require_finite(**outputs)
+    return outputs
 
 
 def build_pdf_data(
@@ -395,6 +421,17 @@ def build_pdf_data(
     calculation_date: str = "",
 ) -> dict:
     """Format PDF metadata/payload consistently for both UI and CLI."""
+    validation.calculation_inputs(speed, adt, LA, L2, L2_opp, L1, terminal_section, a_over_b)
+    if facility not in {"two_lane_two_way", "divided_highway"}:
+        raise ValueError("Invalid facility type.")
+    if lane_width is not None:
+        validation.require_positive(lane_width=lane_width)
+    _require_finite(**results)
+    validation.require_nonnegative(**{key: results[key] for key in (
+        "LR", "A", "B", "C", "D", "A_plus_gating", "C_plus_gating",
+        "flared_near_rounded", "flared_opp_rounded", "X_design_near", "X_design_opp",
+    )})
+    validation.installation_totals(results["A"], results["B"], results["C"], results["D"], L1, terminal_section)
     generated_time = generated_time or datetime.now().strftime("%Y-%m-%d %H:%M")
     calculation_date = calculation_date or datetime.now().strftime("%Y-%m-%d")
     b_over_a = results.get("b_over_a", 0.0 if a_over_b == 0 else 1.0 / a_over_b)
@@ -509,20 +546,28 @@ def write_calc_pdf(
     Returns True when every expected appendix document was appended.
     """
     out_path = os.path.abspath(out_path)
-    tmp_pdf = os.path.splitext(out_path)[0] + "_tmp.pdf"
     expected_appendices = appendix_manifest(pdf_data)
     available_appendices = [item for item in expected_appendices if os.path.exists(item[2])]
     appendices_complete = bool(include_appendix and len(available_appendices) == len(expected_appendices))
 
+    fd, tmp_pdf = tempfile.mkstemp(prefix=".guardrail-", suffix=".pdf", dir=os.path.dirname(out_path))
+    os.close(fd)  # Close before ReportLab opens the file, including on Windows.
+    temporary_paths = [tmp_pdf]
     try:
         render_data = dict(pdf_data)
         render_data["__include_appendix"] = False
         generate_pdf_calc_sheet(tmp_pdf, render_data)
 
         if include_appendix and available_appendices:
-            merge_with_appendices(tmp_pdf, available_appendices, out_path)
+            fd, completed_pdf = tempfile.mkstemp(
+                prefix=".guardrail-", suffix=".pdf", dir=os.path.dirname(out_path),
+            )
+            os.close(fd)
+            temporary_paths.append(completed_pdf)
+            merge_with_appendices(tmp_pdf, available_appendices, completed_pdf)
         else:
-            shutil.move(tmp_pdf, out_path)
+            completed_pdf = tmp_pdf
+        os.replace(completed_pdf, out_path)
 
         if auto_open:
             try:
@@ -532,11 +577,12 @@ def write_calc_pdf(
 
         return appendices_complete
     finally:
-        try:
-            if os.path.exists(tmp_pdf):
-                os.remove(tmp_pdf)
-        except OSError:
-            pass
+        for path in temporary_paths:
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except OSError:
+                pass
 
 
 # =========================
@@ -857,8 +903,46 @@ def _generate_pdf_calc_sheet_legacy(pdf_path: str, data: dict) -> None:
     c.save()
 
 
+def validate_pdf_numbers(data: dict) -> None:
+    """Validate display numeric fields, including documented L1/flare formatting."""
+    signed_fields = {"X(min) near (ft)", "X(min) opp (ft)", "B required (ft)", "D required (ft)",
+                     "Flared portion near (ft)", "Flared portion opp (ft)"}
+    positive_fields = {"LA (ft)", "Lane width (ft)", "Design speed (mph)"}
+    numbers = {}
+    for field, text in data.items():
+        if not (field.endswith("(ft)") or field in {"Design speed (mph)", "Design ADT", "Flare rate a/b"}):
+            continue
+        if field == "Lane width (ft)" and text == "(n/a)":
+            continue
+        if field == "L1 (ft)":
+            match = re.fullmatch(r'([^()]+) \(-?\d+\x27-[\d.]+"\)', str(text))
+            if not match:
+                raise ValueError("Invalid L1 PDF value.")
+            text = match[1]
+        elif field == "Flare rate a/b":
+            if text == "non-flared (0)":
+                text = "0"
+            else:
+                match = re.fullmatch(r"([^/]+)/1", str(text))
+                if not match:
+                    raise ValueError("Invalid flare PDF value.")
+                text = match[1]
+        number = _first_number(str(text))
+        numbers[field] = number
+        if field in positive_fields:
+            validation.require_positive(**{field: number})
+        elif field not in signed_fields:
+            validation.require_nonnegative(**{field: number})
+    installation_fields = ("A (near) (ft)", "B (near) (ft)", "C (opp) (ft)", "D (opp) (ft)",
+                           "L1 (ft)", "Terminal section (ft)")
+    if all(field in numbers for field in installation_fields):
+        # The display payload rounds each component independently to four decimals.
+        validation.installation_totals(*(numbers[field] for field in installation_fields), tolerance=.00021)
+
+
 def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
     """Create a formal, four-decimal-place engineering calculation package."""
+    validate_pdf_numbers(data)
     try:
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -1014,7 +1098,7 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
 
     def value(key, default=""):
         raw = data.get(key, default)
-        return "" if raw is None else str(raw)
+        return "" if raw is None else escape(str(raw))
 
     def section(title):
         return Paragraph(title, styles["SectionHeading"])
@@ -1948,6 +2032,7 @@ def ui_main():
     helper = ttk.LabelFrame(roadway_frame, text="Divided Highway Distance Helper", padding=8)
     helper.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(8, 0))
     helper_widgets = []
+    linked_distance_var = tk.BooleanVar(value=False)
     helper_values = [
         ("Lane Width", div_lane_w_var, 7),
         ("Lanes This Side", lanes_this_var, 5),
@@ -1960,19 +2045,49 @@ def ui_main():
         entry.grid(row=1, column=i, sticky="ew", padx=3, pady=(2, 4))
         helper_widgets.append(entry)
 
+    def roadway_snapshot():
+        facility = FACILITIES[facility_var.get()]
+        L2 = _first_number(L2_var.get())
+        if facility == "two_lane_two_way":
+            return validation.roadway_inputs(facility, L2, _first_number(lane_width_var.get()))
+        return validation.roadway_inputs(
+            facility, L2, _first_number(div_lane_w_var.get()),
+            _first_number(lanes_this_var.get()), _first_number(lanes_opp_var.get()),
+            _first_number(median_w_var.get()),
+            None if linked_distance_var.get() else _first_number(add_dist_var.get()),
+        )
+
+    def refresh_added_distance(*_args):
+        divided = FACILITIES[facility_var.get()] == "divided_highway"
+        add_dist_entry.configure(state=("readonly" if linked_distance_var.get() else "normal") if divided else "disabled")
+        if not linked_distance_var.get():
+            return
+        try:
+            roadway = validation.roadway_inputs(
+                "divided_highway", _first_number(L2_var.get()), _first_number(div_lane_w_var.get()),
+                _first_number(lanes_this_var.get()), _first_number(lanes_opp_var.get()),
+                _first_number(median_w_var.get()),
+            )
+            add_dist_var.set(f"{roadway['added_distance']:.4f}")
+        except ValueError:
+            add_dist_var.set("")
+
     def compute_added_distance():
         try:
-            lane_w = float(_first_number(div_lane_w_var.get()))
-            lanes_this = float(_first_number(lanes_this_var.get()))
-            lanes_opp = float(_first_number(lanes_opp_var.get()))
-            median_w = float(_first_number(median_w_var.get()))
-            add_dist_var.set(f"{lane_w * (lanes_this + lanes_opp) + median_w:.4f}")
+            linked_distance_var.set(True)
+            roadway_snapshot()
         except Exception as e:
             messagebox.showerror("Distance Helper", f"Could not compute the added distance.\n\n{e}")
 
     helper_button = ttk.Button(helper, text="Use Calculated Distance", command=compute_added_distance)
     helper_button.grid(row=2, column=0, columnspan=4, sticky="ew", padx=3, pady=(3, 0))
     helper_widgets.append(helper_button)
+    linked_check = ttk.Checkbutton(helper, text="Keep distance linked to lane/median dimensions",
+                                  variable=linked_distance_var)
+    linked_check.grid(row=3, column=0, columnspan=4, sticky="w", padx=3)
+    helper_widgets.append(linked_check)
+    for variable in (div_lane_w_var, lanes_this_var, lanes_opp_var, median_w_var, L2_var, linked_distance_var):
+        variable.trace_add("write", refresh_added_distance)
 
     design_frame = ttk.LabelFrame(content, text="Design Parameters", padding=12, style="Section.TLabelframe")
     design_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 0), pady=(0, 10))
@@ -2056,6 +2171,7 @@ def ui_main():
         set_state(add_dist_entry, divided)
         for widget in helper_widgets:
             set_state(widget, divided)
+        refresh_added_distance()
 
         clearzone = LA_MODES[la_mode_var.get()] == "clearzone"
         set_state(LA_entry, not clearzone)
@@ -2109,17 +2225,9 @@ def ui_main():
         if L2 < 0:
             raise ValueError("Near-side offset L2 cannot be negative.")
 
-        lane_width = None
-        if facility == "two_lane_two_way":
-            lane_width = float(_first_number(lane_width_var.get()))
-            if lane_width <= 0:
-                raise ValueError("Lane width must be greater than zero.")
-            L2_opp = L2 + lane_width
-        else:
-            added_distance = float(_first_number(add_dist_var.get()))
-            if added_distance < 0:
-                raise ValueError("Added distance cannot be negative.")
-            L2_opp = L2 + added_distance
+        roadway = roadway_snapshot()
+        lane_width = roadway["lane_width"]
+        L2_opp = roadway["L2_opp"]
 
         L1 = DEFAULT_L1_FT if l1_mode_var.get() == "Standard" else float(_first_number(L1_custom_var.get()))
         terminal = (
@@ -2154,7 +2262,8 @@ def ui_main():
             results=results,
             generated_time=datetime.now().strftime("%Y-%m-%d %H:%M"),
         )
-        return results, pdf_data
+        roadway.update(LA=LA, L1=L1, terminal=terminal, flare_rate=a_over_b)
+        return results, pdf_data, roadway
 
     def show_results(results):
         for item in results_tree.get_children():
@@ -2179,7 +2288,7 @@ def ui_main():
     def run_auto_calculation():
         auto_calculate_job["id"] = None
         try:
-            results, _ = calculate_model()
+            results, _, _ = calculate_model()
             show_results(results)
             status_var.set("Results updated automatically.")
         except Exception as exc:
@@ -2193,7 +2302,7 @@ def ui_main():
 
     def calculate_action():
         try:
-            results, _ = calculate_model()
+            results, _, _ = calculate_model()
             show_results(results)
             status_var.set("Calculation complete. No PDF was generated.")
         except Exception as e:
@@ -2202,7 +2311,7 @@ def ui_main():
 
     def generate_pdf_action():
         try:
-            results, pdf_data = calculate_model()
+            results, pdf_data, _ = calculate_model()
             show_results(results)
             out_path = pdf_path_var.get().strip()
             if not out_path:
@@ -2236,7 +2345,8 @@ def ui_main():
 
     def generate_dxf_action():
         try:
-            results, pdf_data = calculate_model()
+            results, pdf_data, roadway = calculate_model()
+            validation.require_drawing_crossing(roadway)
             show_results(results)
             dialog = tk.Toplevel(root)
             dialog.title("To-Scale Guardrail DXF")
@@ -2263,26 +2373,40 @@ def ui_main():
             bridge_length_entry = ttk.Entry(body, textvariable=bridge_length_var, width=24)
             bridge_length_entry.grid(row=3, column=1, columnspan=2, sticky="ew", pady=4)
             ttk.Label(body, text="LandXML File").grid(row=4, column=0, sticky="w", pady=4)
-            landxml_entry = ttk.Entry(body, textvariable=landxml_path_var, width=42)
+            landxml_entry = ttk.Entry(body, textvariable=landxml_path_var, width=42, state="readonly")
             landxml_entry.grid(row=4, column=1, sticky="ew", pady=4)
+
+            def invalidate_landxml(*_args):
+                loaded_alignments.clear()
+                alignment_var.set("")
+                bridge_start_var.set("")
+                bridge_end_var.set("")
+                alignment_combo.configure(values=[])
+
+            landxml_path_var.trace_add("write", invalidate_landxml)
 
             def browse_landxml():
                 path = filedialog.askopenfilename(parent=dialog, title="Select LandXML", filetypes=[("LandXML", "*.xml"), ("XML", "*.xml")])
                 if not path:
                     return
+                landxml_path_var.set(path)
                 try:
-                    alignments = guardrail_landxml.load_alignments(path)
+                    rejected = []
+                    alignments = guardrail_landxml.load_alignments(path, rejected_alignments=rejected)
                 except Exception as exc:
                     messagebox.showerror("LandXML Error", str(exc), parent=dialog)
                     return
                 loaded_alignments.clear()
-                for alignment in alignments:
+                for index, alignment in enumerate(alignments, 1):
                     regions = " | ".join(alignment.civil_region_labels())
                     label = f"{alignment.name}  ({regions})"
+                    if label in loaded_alignments:
+                        label += f" [alignment {index}]"
                     loaded_alignments[label] = alignment
-                landxml_path_var.set(path)
                 alignment_combo.configure(values=list(loaded_alignments))
                 alignment_var.set(next(iter(loaded_alignments)))
+                if rejected:
+                    messagebox.showwarning("Unsupported LandXML Alignments", "Rejected alignments:\n\n" + "\n".join(rejected), parent=dialog)
 
             browse_button = ttk.Button(body, text="Browse...", command=browse_landxml)
             browse_button.grid(row=4, column=2, padx=(6, 0))
@@ -2306,7 +2430,8 @@ def ui_main():
                 for widget in mode_widgets:
                     widget.configure(state=("normal" if landxml_mode else "disabled"))
                 alignment_combo.configure(state=("readonly" if landxml_mode else "disabled"))
-                layout_combo.configure(state=("readonly" if FACILITIES[facility_var.get()] == "divided_highway" else "disabled"))
+                landxml_entry.configure(state=("readonly" if landxml_mode else "disabled"))
+                layout_combo.configure(state=("readonly" if roadway["facility"] == "divided_highway" else "disabled"))
             mode_var.trace_add("write", update_dxf_dialog)
 
             def accept_dialog():
@@ -2338,22 +2463,9 @@ def ui_main():
                 status_var.set("DXF generation cancelled.")
                 return
 
-            facility = FACILITIES[facility_var.get()]
-            L2 = float(_first_number(L2_var.get()))
-            if LA_MODES[la_mode_var.get()] == "direct":
-                LA = float(_first_number(LA_var.get()))
-            else:
-                LA = compute_clear_zone(int(speed_var.get()), float(_first_number(adt_var.get())))
-            L1 = DEFAULT_L1_FT if l1_mode_var.get() == "Standard" else float(_first_number(L1_custom_var.get()))
-            terminal = DEFAULT_TERMINAL_SECTION_FT if term_mode_var.get() == "Default" else float(_first_number(term_custom_var.get()))
-            flare = flare_var.get()
-            flare_rate = 0.0 if flare == "Non-Flared" else float(flare.split(":")[0])
-            lane_width = float(_first_number(lane_width_var.get() if facility == "two_lane_two_way" else div_lane_w_var.get()))
-            lanes_this = 1 if facility == "two_lane_two_way" else int(float(_first_number(lanes_this_var.get())))
-            lanes_opposing = 1 if facility == "two_lane_two_way" else int(float(_first_number(lanes_opp_var.get())))
-            median_width = 0.0 if facility == "two_lane_two_way" else float(_first_number(median_w_var.get()))
+            facility = roadway["facility"]
             required = (
-                max(results["A"], results["C"] if facility == "two_lane_two_way" else results["A"])
+                max(results["A"], results["C"])
                 + guardrail_dxf.GATING_LENGTH
                 + guardrail_dxf.SHOULDER_TRANSITION_LENGTH
                 + guardrail_dxf.NORMAL_SHOULDER_EXTENSION
@@ -2371,13 +2483,17 @@ def ui_main():
                 insunits = 21 if "ussurveyfoot" in unit_key or "usfoot" in unit_key else 2
             drawing_model = guardrail_dxf.DrawingModel(
                 facility=facility, bridge_start=bridge_start, bridge_end=bridge_end, alignment=alignment,
-                A=results["A"], B=results["B"], C=results["C"], D=results["D"], L1=L1,
-                terminal=terminal, L2=L2, LA=LA, lane_width=lane_width, lanes_this=lanes_this,
-                lanes_opposing=lanes_opposing, median_width=median_width, flare_rate=flare_rate,
+                A=results["A"], B=results["B"], C=results["C"], D=results["D"],
+                L1=roadway["L1"], terminal=roadway["terminal"], L2=roadway["L2"], LA=roadway["LA"],
+                lane_width=roadway["lane_width"], lanes_this=roadway["lanes_this"],
+                lanes_opposing=roadway["lanes_opposing"], median_width=roadway["median_width"],
+                flare_rate=roadway["flare_rate"], opposing_added_distance=roadway["added_distance"],
                 divided_layout="inside" if divided_layout_var.get().startswith("Inside") else "outside",
-                project=project_var.get().strip(), route=route_var.get().strip(),
+                project="" if pdf_data["Project"] == "(not provided)" else pdf_data["Project"],
+                route="" if pdf_data["Route / Location"] == "(not provided)" else pdf_data["Route / Location"],
                 insunits=insunits,
             )
+            guardrail_dxf.validate_model(drawing_model)
             default_name = _safe_filename(
                 f"{project_var.get().strip()}_guardrail_plan" if project_var.get().strip() else "guardrail_plan"
             ).rsplit(".", 1)[0]
