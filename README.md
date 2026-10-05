@@ -95,7 +95,25 @@ py -m pip install pyinstaller
 py -m PyInstaller guardrail.spec -y
 ```
 
-The build produces `dist\guardrail.exe`. Build output is ignored by Git; upload the executable to a GitHub release to distribute a new version.
+The build produces `dist\guardrail.exe`. Build output is ignored by Git.
+
+GitHub Actions runs the regression suite and builds the Windows executable on
+every push and pull request. Download `guardrail-windows` from the workflow run
+to try a build before releasing it. The workflow can also be run manually from
+the repository's **Actions** tab.
+
+To publish a version, tag the commit you want to release and push the tag:
+
+```powershell
+git tag v8.6
+git push origin v8.6
+```
+
+Use a new `v`-prefixed tag for each version. Only after tests and the Windows
+build pass, the workflow creates a GitHub release with generated notes and
+attaches `guardrail.exe`. Re-running a tag workflow replaces the asset if the
+release already exists. The README's latest-release download link continues to
+point to the latest release. No additional GitHub secrets are required.
 
 ## Reference documents
 
