@@ -9,3 +9,4 @@ dist/
 # Local backups and workspace-specific agent configuration
 Backup/
 .agents/
+.DS_Store
