@@ -8,6 +8,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import guardrail_validation as validation
+from guardrail_design import ReportStyle
+from guardrail_models import ReportModel
+from guardrail_report import report_payload
 from test_guardrail_app import app
 
 
@@ -41,7 +44,9 @@ class InputStateTests(unittest.TestCase):
                                        ("lanes_this_var", "3", 120),
                                        ("div_lane_w_var", "10", 110)]:
             self.ui[field].set(value)
-            _, payload, roadway = self.ui["calculate_model"]()
+            snapshot = self.ui["calculate_model"]()
+            payload = report_payload(ReportModel(snapshot, ReportStyle.COMPLETE, "2026-10-01 12:00"))
+            roadway = snapshot.inputs.roadway.as_dict()
             self.assertEqual(float(payload["Opp-side L2 (ft)"]), 10 + expected)
             self.assertEqual(roadway["added_distance"], expected)
             self.assertEqual(float(self.ui["add_dist_var"].get()), expected)
@@ -60,7 +65,9 @@ class InputStateTests(unittest.TestCase):
         self.divided()
         self.ui["add_dist_var"].set("88")
         self.ui["median_w_var"].set("60")
-        _, payload, roadway = self.ui["calculate_model"]()
+        snapshot = self.ui["calculate_model"]()
+        payload = report_payload(ReportModel(snapshot, ReportStyle.COMPLETE, "2026-10-01 12:00"))
+        roadway = snapshot.inputs.roadway.as_dict()
         self.assertEqual(payload["Opp-side L2 (ft)"], "98.0000")
         self.assertEqual(roadway["added_distance"], 88)
         with patch("tkinter.messagebox.showerror") as error, patch.object(tk, "Toplevel") as dialog:
@@ -87,6 +94,32 @@ class InputStateTests(unittest.TestCase):
         self.assertEqual(drawing.median_width, 40)
         self.assertEqual(drawing.opposing_added_distance, 88)
         self.assertEqual(self.ui["median_w_var"].get(), "60")
+
+    def test_pdf_uses_snapshot_when_form_changes_during_save_dialog(self):
+        self.ui["project_var"].set("Original Project")
+        expected = self.ui["calculate_model"]()
+
+        def choose(**kwargs):
+            self.ui["project_var"].set("Changed Project")
+            self.ui["L2_var"].set("20")
+            return "snapshot.pdf"
+
+        with patch("tkinter.filedialog.asksaveasfilename", side_effect=choose), \
+                patch("guardrail_ui.write_report", return_value=True) as write, \
+                patch("tkinter.messagebox.showinfo"), patch("tkinter.messagebox.showerror") as errors:
+            self.ui["generate_pdf_action"]()
+        errors.assert_not_called()
+        report = write.call_args.args[1]
+        self.assertEqual(report.snapshot.project.project, "Original Project")
+        self.assertEqual(report.snapshot.inputs.roadway.L2, 10)
+        self.assertEqual(report.snapshot.result, expected.result)
+
+    def test_unexpected_callback_errors_retain_traceback(self):
+        with patch("guardrail_ui.create_snapshot", side_effect=KeyError("programming error")), \
+                patch("tkinter.messagebox.showerror") as error, self.assertLogs("guardrail_ui", level="ERROR") as logs:
+            self.ui["calculate_action"]()
+        self.assertIn("KeyError", "\n".join(logs.output))
+        self.assertIn("programming error", error.call_args.args[1])
 
     def landxml_dialog(self, exercise):
         def inspect(root, window):

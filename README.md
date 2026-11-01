@@ -4,6 +4,10 @@ A Windows desktop application for calculating guardrail length-of-need values an
 
 Current application version: **V8.5**
 
+The source is organized around immutable calculation snapshots, a pure engine,
+and separate report/drawing output modules. See [Python architecture](ARCHITECTURE.md)
+for module responsibilities, characterization coverage, and unresolved engineering questions.
+
 ## What it does
 
 - Calculates near-side and opposing-side guardrail lengths.
@@ -12,7 +16,7 @@ Current application version: **V8.5**
 - Uses either a direct hazard offset or a clear-zone selection based on MDOT Table 9-2-A.
 - Handles transition length, terminal section, flare rate, and gating length.
 - Generates a calculation-sheet PDF, with an option to append the included MDOT reference documents.
-- Exports a layered, to-scale R12 DXF plan showing the calculated guardrail lengths and GR-4/GR-4a shoulder geometry at both bridge ends.
+- Exports a layered, to-scale DXF plan showing the calculated guardrail lengths and GR-4/GR-4a shoulder geometry at both bridge ends. The existing serializer writes AutoCAD R2000 format.
 
 ## Use the Windows application
 
@@ -65,6 +69,10 @@ Run the application from the project folder:
 ```powershell
 py guardrail_V8.5.py
 ```
+
+Unexpected GUI errors retain tracebacks in `%LOCALAPPDATA%\GuardrailCalculator\guardrail.log`
+when launched through the desktop entry point. If that directory is unavailable,
+the application falls back to console logging.
 
 Run the complete regression suite with:
 
