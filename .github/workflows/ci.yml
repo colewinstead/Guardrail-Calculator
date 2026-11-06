@@ -3,14 +3,34 @@ name: Test and release
 on:
   push:
     branches: ['**']
-    tags: ['v*']
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  version-policy:
+    name: Version policy
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.version.outputs.changed }}
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Check application version
+        id: version
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+        run: python .github/scripts/check_version.py --base "$BASE_SHA" --output "$GITHUB_OUTPUT"
+
   test-build:
     name: Windows tests and executable
     runs-on: windows-latest
@@ -34,8 +54,8 @@ jobs:
 
   release:
     name: Publish GitHub release
-    needs: test-build
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    needs: [version-policy, test-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version-policy.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -48,10 +68,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ needs.version-policy.outputs.tag }}
+          APP_VERSION: ${{ needs.version-policy.outputs.version }}
+          RELEASE_SHA: ${{ github.sha }}
         run: |
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" dist/guardrail.exe --clobber
+            echo "Release $RELEASE_TAG already exists; keeping its published asset."
           else
-            gh release create "$RELEASE_TAG" dist/guardrail.exe --verify-tag --generate-notes
+            gh release create "$RELEASE_TAG" dist/guardrail.exe --target "$RELEASE_SHA" --title "Guardrail Calculator $APP_VERSION" --generate-notes --latest
           fi
