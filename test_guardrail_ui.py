@@ -3,6 +3,7 @@
 import sys
 import tempfile
 import tkinter as tk
+from tkinter import ttk
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -29,13 +30,72 @@ class InputStateTests(unittest.TestCase):
             self.skipTest(f"Tk is unavailable: {exc}")
         self.root = self.ui["root"]
         self.addCleanup(self.root.destroy)
+        self.addCleanup(self.cancel_auto_calculation)
+        self.cancel_auto_calculation()
+
+    def cancel_auto_calculation(self):
         job = self.ui["auto_calculate_job"]["id"]
         if job:
             self.root.after_cancel(job)
+            self.ui["auto_calculate_job"]["id"] = None
 
     def divided(self):
         self.ui["facility_var"].set("Divided Highway")
         self.ui["update_conditional_fields"]()
+
+    def test_primary_button_contrast_in_each_interactive_state(self):
+        def luminance(color):
+            channels = [int(color[index:index + 2], 16) / 255 for index in (1, 3, 5)]
+            linear = [value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+                      for value in channels]
+            return sum(value * weight for value, weight in zip(linear, (0.2126, 0.7152, 0.0722)))
+
+        style = ttk.Style(self.root)
+        for state in ((), ("active",), ("pressed",), ("active", "pressed"), ("focus",)):
+            with self.subTest(state=state):
+                foreground = luminance(style.lookup("Primary.TButton", "foreground", state))
+                background = luminance(style.lookup("Primary.TButton", "background", state))
+                high, low = sorted((foreground, background), reverse=True)
+                self.assertGreaterEqual((high + 0.05) / (low + 0.05), 4.5)
+
+    def test_keyboard_focus_reveals_controls_in_both_scroll_directions(self):
+        self.root.state("normal")
+        self.root.geometry("900x700")
+        self.root.deiconify()
+        self.root.update()
+        self.root.focus_force()
+        canvas = self.ui["canvas"]
+        export = next(widget for widget in self.ui["actions"].winfo_children()
+                      if widget.winfo_class() == "TButton" and widget.cget("text") == "Export DXF")
+        for widget in (export, self.ui["facility_combo"]):
+            with self.subTest(control=str(widget)):
+                widget.focus_set()
+                self.root.update()
+                self.assertEqual(self.root.focus_get(), widget)
+                self.assertGreaterEqual(widget.winfo_rooty(), canvas.winfo_rooty())
+                self.assertLessEqual(widget.winfo_rooty() + widget.winfo_height(),
+                                     canvas.winfo_rooty() + canvas.winfo_height())
+
+    def test_dxf_dialog_initial_focus_and_escape_cancel(self):
+        self.root.deiconify()
+        self.root.update()
+        self.root.focus_force()
+
+        def cancel(root, window):
+            local = sys._getframe(1).f_locals
+            window.update()
+            self.assertEqual(window.focus_get(), local["bridge_length_entry"])
+            window.event_generate("<Escape>")
+            window.update()
+            self.assertFalse(window.winfo_exists())
+
+        with patch.object(tk.Misc, "wait_window", cancel), \
+                patch("tkinter.filedialog.asksaveasfilename") as save, \
+                patch("tkinter.messagebox.showerror") as errors:
+            self.ui["generate_dxf_action"]()
+        save.assert_not_called()
+        errors.assert_not_called()
+        self.assertEqual(self.ui["status_var"].get(), "DXF generation cancelled.")
 
     def test_linked_dimensions_refresh_pdf_and_drawing_state(self):
         self.divided()
