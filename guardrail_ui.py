@@ -57,6 +57,7 @@ def ui_main():
     root.title(f"Guardrail Length-of-Need Calculator {APP_VERSION}")
     root.geometry("1040x850")
     root.minsize(900, 700)
+    root.state("zoomed")
     root.configure(background="#111827")
 
     style = ttk.Style(root)
@@ -266,7 +267,7 @@ def ui_main():
     design_frame = ttk.LabelFrame(content, text="Design Parameters", padding=12, style="Section.TLabelframe")
     design_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 0), pady=(0, 10))
     la_mode_combo = add_field(design_frame, 0, "Hazard Offset Source", la_mode_var, "combo", list(LA_MODES))
-    LA_entry = add_field(design_frame, 1, "Hazard Offset, LA (ft)", LA_var)
+    LA_entry = add_field(design_frame, 1, "Manual Hazard Offset, LA (ft)", LA_var)
     slope_combo = add_field(design_frame, 2, "Clear-Zone Side Slope", slope_var, "combo", list(SLOPES))
     cz_pick_combo = add_field(design_frame, 3, "Clear-Zone Selection", cz_pick_var, "combo", list(CLEAR_ZONE_PICKS))
     cz_custom_entry = add_field(design_frame, 4, "Custom Clear Zone (ft)", cz_custom_var)

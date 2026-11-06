@@ -2,7 +2,7 @@
 
 A Windows desktop application for calculating guardrail length-of-need values and producing a PDF calculation package. The calculator is based on the MDOT Roadway Design Manual tables and the included GR-4 reference documents.
 
-Current application version: **V8.5.1**
+Current application version: **V8.5.2**
 
 The source is organized around immutable calculation snapshots, a pure engine,
 and separate report/drawing output modules. See [Python architecture](ARCHITECTURE.md)
