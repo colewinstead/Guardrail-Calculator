@@ -663,6 +663,9 @@ def ui_main():
     ttk.Button(actions, text="Export DXF", command=generate_dxf_action, style="Primary.TButton").grid(
         row=0, column=2, sticky="ew", padx=(6, 0), ipady=5
     )
+    ttk.Label(actions, text="Beta", style="Subtitle.TLabel").grid(
+        row=1, column=2, padx=(6, 0), pady=(3, 0)
+    )
     ttk.Label(content, textvariable=status_var, style="Subtitle.TLabel").grid(
         row=6, column=0, columnspan=2, sticky="w"
     )

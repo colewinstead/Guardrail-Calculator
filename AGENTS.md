@@ -37,8 +37,22 @@ Tests use Python's `unittest`; name files `test_*.py` and methods `test_*`. Add 
 
 ## Commit & Pull Request Guidelines
 
+Start each task on a focused feature branch from current `origin/main` (for example, `codex/describe-change`). Preserve any existing unmerged work on its branch. Push the feature branch and open a PR into `main`; never commit or push directly to `main`. Merge through the PR only after all required checks pass and review conversations are resolved. Do not bypass branch protection, including as an administrator.
+
 Recent commits use short, descriptive action phrases, such as `Remove generated build files and correct setup docs`; no formal prefix scheme is enforced. Keep commits focused. PRs should explain the problem, resulting behavior, and validation performed. Link related issues when applicable and include screenshots or export examples for visible changes. Explain the reference basis for changes to engineering calculations.
+
+## Application Version Policy
+
+`APP_VERSION` in `guardrail_design.py` is the authoritative application version shown in the UI and reports. Use `VMAJOR.MINOR.PATCH` for new versions and update the current-version line in `README.md` in the same PR. Do not rename the compatibility launcher `guardrail_V8.5.py` when bumping the version.
+
+- Increment PATCH for compatible bug fixes, small UI changes, and corrections that preserve supported inputs and interfaces.
+- Increment MINOR for new features or supported workflows; reset PATCH to zero.
+- Increment MAJOR for incompatible input, API, or workflow changes; reset MINOR and PATCH to zero. Explain engineering behavior changes and their reference basis in the PR regardless of bump size.
+- Bump once per PR that changes application code, packaged reference PDFs, runtime dependencies, or the executable specification. The legacy `V8.5` baseline is equivalent to `V8.5.0`.
+- Do not bump for documentation-only, test-only, or CI/tooling-only changes. A version bump deliberately requests a public release when the PR merges.
 
 ## Build Assets & Releases
 
 `build/`, `dist/`, and Python bytecode are ignored. Publish Windows executables through GitHub Releases and keep the README download link current. Commit example exports only when they provide useful, reviewed documentation.
+
+GitHub Actions requires `Version policy` and `Windows tests and executable` before merging into `main`. Every PR runs these checks, including documentation-only PRs. A push to `main` publishes `guardrail.exe` only when `APP_VERSION` increased from the previous `main` revision and both checks pass. The workflow creates the corresponding lowercase `vMAJOR.MINOR.PATCH` tag and GitHub release automatically; do not push release tags manually or overwrite published versions.

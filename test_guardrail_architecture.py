@@ -19,7 +19,7 @@ import guardrail_landxml as landxml
 from test_guardrail_app import app
 from test_guardrail_dxf import model
 from test_guardrail_phase2 import circular_alignment
-from guardrail_design import Facility, DividedLayout, PlacementMode, ReportStyle
+from guardrail_design import APP_VERSION, Facility, DividedLayout, PlacementMode, ReportStyle
 from guardrail_models import (
     CalculationInputs, HazardBarrierInputs, ProjectMetadata, ReportModel,
     AlignmentSelection, DrawingExportConfiguration,
@@ -70,6 +70,9 @@ class BaselineCharacterizationTests(unittest.TestCase):
                     app.DEFAULT_L1_FT, 25, flare, style, results, generated_time="2026-10-01 12:00",
                     route_location="SR 8", job_number="123", prepared_by="Author", checked_by="Reviewer",
                     calculation_date="2026-10-01")
+                self.assertEqual(data["__app_version"], APP_VERSION)
+                # Keep the captured V8.5 layout baseline stable across version bumps.
+                data["__app_version"] = "V8.5"
                 self.assertEqual(digest(data), FIXTURE["reports"][key]["payload"])
                 buffer = BytesIO()
                 app.generate_pdf_calc_sheet(buffer, data)

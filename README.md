@@ -2,7 +2,7 @@
 
 A Windows desktop application for calculating guardrail length-of-need values and producing a PDF calculation package. The calculator is based on the MDOT Roadway Design Manual tables and the included GR-4 reference documents.
 
-Current application version: **V8.5**
+Current application version: **V8.5.1**
 
 The source is organized around immutable calculation snapshots, a pure engine,
 and separate report/drawing output modules. See [Python architecture](ARCHITECTURE.md)
@@ -102,18 +102,25 @@ every push and pull request. Download `guardrail-windows` from the workflow run
 to try a build before releasing it. The workflow can also be run manually from
 the repository's **Actions** tab.
 
-To publish a version, tag the commit you want to release and push the tag:
+Work on a feature branch and open a pull request into `main`. Both `Version
+policy` and `Windows tests and executable` must pass before merging, and review
+conversations must be resolved. These requirements also apply to administrators.
 
-```powershell
-git tag v8.6
-git push origin v8.6
-```
+For application changes, increase `APP_VERSION` in `guardrail_design.py` and
+update the current version at the top of this README in the same PR. New
+versions use `VMAJOR.MINOR.PATCH`: patch for compatible fixes and small UI changes,
+minor for features, and major for breaking changes. See `AGENTS.md` for the full
+policy. Keep the compatibility launcher filename `guardrail_V8.5.py` unchanged.
 
-Use a new `v`-prefixed tag for each version. Only after tests and the Windows
-build pass, the workflow creates a GitHub release with generated notes and
-attaches `guardrail.exe`. Re-running a tag workflow replaces the asset if the
-release already exists. The README's latest-release download link continues to
-point to the latest release. No additional GitHub secrets are required.
+After the PR merges, passing tests and a successful Windows build automatically
+publish `guardrail.exe` with generated release notes and the matching lowercase
+version tag (for example, `v8.5.1`). Do not push release tags manually. Published
+versions are immutable; make a new patch release for corrections. The README's
+latest-release download link continues to point to the latest release. No
+additional GitHub secrets are required.
+
+Documentation-only, test-only, and CI/tooling-only changes do not need a version
+bump and do not publish a release. Manual workflow runs also never publish.
 
 ## Reference documents
 
