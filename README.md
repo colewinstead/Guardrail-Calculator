@@ -46,7 +46,7 @@ Automation exposed most controls as unnamed panes during inspection. These
 keyboard and contrast improvements do not establish NVDA support; that requires
 a separate runtime/accessibility review and testing with a screen reader.
 
-### DXF export modes
+### DXF export modes - BETA
 
 - **Standalone** uses one DXF model-space unit per foot and asks for the bridge length.
 - **LandXML overlay** lists every usable alignment in the selected file and asks for bridge start and end stations.
