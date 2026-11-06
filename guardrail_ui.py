@@ -57,6 +57,7 @@ def ui_main():
     root.title(f"Guardrail Length-of-Need Calculator {APP_VERSION}")
     root.geometry("1040x850")
     root.minsize(900, 700)
+    root.state("zoomed")
     root.configure(background="#111827")
 
     style = ttk.Style(root)
@@ -68,7 +69,7 @@ def ui_main():
     border = "#374151"
     text_fg = "#E5E7EB"
     muted_fg = "#9CA3AF"
-    accent = "#3B82F6"
+    accent = "#2563EB"
     style.configure(".", background=dark_bg, foreground=text_fg, fieldbackground=input_bg, bordercolor=border, lightcolor=border, darkcolor=border)
     style.configure("TFrame", background=dark_bg)
     style.configure("TLabel", background=dark_bg, foreground=text_fg)
@@ -85,7 +86,7 @@ def ui_main():
     style.configure("TButton", background="#374151", foreground=text_fg, bordercolor="#4B5563", padding=(8, 5))
     style.map("TButton", background=[("active", "#4B5563"), ("pressed", "#1F2937"), ("disabled", "#1F2937")], foreground=[("disabled", "#6B7280")])
     style.configure("Primary.TButton", font=("Segoe UI", 10, "bold"), background=accent, foreground="#FFFFFF", bordercolor="#60A5FA")
-    style.map("Primary.TButton", background=[("active", "#2563EB"), ("pressed", "#1D4ED8")])
+    style.map("Primary.TButton", background=[("pressed", "#1E40AF"), ("active", "#1D4ED8")])
     style.configure("TCheckbutton", background=panel_bg, foreground=text_fg)
     style.map("TCheckbutton", background=[("active", panel_bg)], foreground=[("active", "#FFFFFF")])
     style.configure("TRadiobutton", background=dark_bg, foreground=text_fg)
@@ -96,6 +97,10 @@ def ui_main():
     style.configure("Result.Treeview.Heading", font=("Segoe UI", 9, "bold"), background="#374151", foreground=text_fg, relief="flat")
     style.map("Result.Treeview.Heading", background=[("active", "#4B5563")])
     style.configure("Vertical.TScrollbar", background="#374151", troughcolor=input_bg, arrowcolor=text_fg, bordercolor=border)
+    for widget_style in ("TButton", "TCheckbutton", "TRadiobutton"):
+        style.configure(widget_style, focuscolor=text_fg, focusthickness=2, focussolid=True)
+    for widget_style in ("TEntry", "TCombobox", "Result.Treeview"):
+        style.map(widget_style, bordercolor=[("focus", "#93C5FD")], lightcolor=[("focus", "#93C5FD")])
 
     outer = ttk.Frame(root)
     outer.pack(fill="both", expand=True)
@@ -116,6 +121,21 @@ def ui_main():
     canvas.bind("<Configure>", resize_content)
     content.bind("<Configure>", update_scrollregion)
     canvas.bind_all("<MouseWheel>", lambda event: canvas.yview_scroll(int(-event.delta / 120), "units"))
+
+    def reveal_focused_control(event):
+        widget = event.widget
+        if widget.winfo_toplevel() != root or widget in (root, canvas):
+            return
+        top = widget.winfo_rooty() - content.winfo_rooty()
+        bottom = top + widget.winfo_height()
+        visible_top = canvas.canvasy(0)
+        visible_height = canvas.winfo_height()
+        if top < visible_top:
+            canvas.yview_moveto(max(0, top - 8) / max(1, content.winfo_height()))
+        elif bottom > visible_top + visible_height:
+            canvas.yview_moveto((bottom - visible_height + 8) / max(1, content.winfo_height()))
+
+    root.bind("<FocusIn>", reveal_focused_control)
     content.columnconfigure(0, weight=1)
     content.columnconfigure(1, weight=1)
 
@@ -266,7 +286,7 @@ def ui_main():
     design_frame = ttk.LabelFrame(content, text="Design Parameters", padding=12, style="Section.TLabelframe")
     design_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 0), pady=(0, 10))
     la_mode_combo = add_field(design_frame, 0, "Hazard Offset Source", la_mode_var, "combo", list(LA_MODES))
-    LA_entry = add_field(design_frame, 1, "Hazard Offset, LA (ft)", LA_var)
+    LA_entry = add_field(design_frame, 1, "Manual Hazard Offset, LA (ft)", LA_var)
     slope_combo = add_field(design_frame, 2, "Clear-Zone Side Slope", slope_var, "combo", list(SLOPES))
     cz_pick_combo = add_field(design_frame, 3, "Clear-Zone Selection", cz_pick_var, "combo", list(CLEAR_ZONE_PICKS))
     cz_custom_entry = add_field(design_frame, 4, "Custom Clear Zone (ft)", cz_custom_var)
@@ -622,6 +642,8 @@ def ui_main():
             ttk.Button(buttons, text="Continue", command=accept_dialog, style="Primary.TButton").pack(side="left", padx=4)
             update_dxf_dialog()
             dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+            dialog.bind("<Escape>", lambda _event: dialog.destroy())
+            bridge_length_entry.focus_set()
             root.wait_window(dialog)
             if not accepted["value"]:
                 status_var.set("DXF generation cancelled.")

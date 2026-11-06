@@ -35,6 +35,8 @@ Keep one immutable calculation snapshot authoritative for UI, reports, and drawi
 
 Tests use Python's `unittest`; name files `test_*.py` and methods `test_*`. Add regression tests for changed geometry, station equations, units, and input rejection. Use temporary directories for generated fixtures. No numeric coverage threshold is configured. Run the existing suite before submitting code changes, and manually check affected GUI flows and PDF/DXF output for layout changes.
 
+Try not to use Computer use. Take screenshots and use coded test to test the program.
+
 ## Commit & Pull Request Guidelines
 
 Start each task on a focused feature branch from current `origin/main` (for example, `codex/describe-change`). Preserve any existing unmerged work on its branch. Push the feature branch and open a PR into `main`; never commit or push directly to `main`. Merge through the PR only after all required checks pass and review conversations are resolved. Do not bypass branch protection, including as an administrator.

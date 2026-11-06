@@ -2,7 +2,7 @@
 
 A Windows desktop application for calculating guardrail length-of-need values and producing a PDF calculation package. The calculator is based on the MDOT Roadway Design Manual tables and the included GR-4 reference documents.
 
-Current application version: **V8.5.1**
+Current application version: **V8.5.2**
 
 The source is organized around immutable calculation snapshots, a pure engine,
 and separate report/drawing output modules. See [Python architecture](ARCHITECTURE.md)
@@ -27,6 +27,24 @@ Enter the project and roadway information, select the design parameters, and cho
 - **Calculate** to show results in the application.
 - **Generate PDF** to save a calculation package. The package can include the MDOT reference appendix and can optionally open when complete.
 - **Export DXF** to create either a standalone feet-based plan or a LandXML overlay in real project coordinates. The export dialog collects bridge limits and the applicable GR-4 layout.
+
+### Keyboard access and screen readers
+
+Use **Tab** and **Shift+Tab** to move between enabled controls; the main form
+scrolls to keep the focused control visible. Use **Space** to activate a focused
+button or checkbox, and the standard arrow keys to operate selection controls.
+The DXF dialog starts with the bridge-length field focused; **Escape** cancels it.
+
+Button text has at least 4.5:1 contrast in its normal, hover, and pressed states,
+and focused controls have a distinct light outline.
+[View the keyboard-focus example](docs/images/keyboard-focus.png).
+
+Screen-reader compatibility has not been verified. The tested Tk 8.6.15 runtime
+does not provide the `tk accessible` naming API documented for
+[Tk 9.1](https://www.tcl-lang.org/man/tcl9.1/TkCmd/accessible.html), and Windows UI
+Automation exposed most controls as unnamed panes during inspection. These
+keyboard and contrast improvements do not establish NVDA support; that requires
+a separate runtime/accessibility review and testing with a screen reader.
 
 ### DXF export modes
 
