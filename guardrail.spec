@@ -2,6 +2,7 @@
 # Build with: pyinstaller guardrail.spec -y
 
 import os
+import runpy
 from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
@@ -37,7 +38,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name="guardrail",
+    name="guardrail-" + runpy.run_path(os.path.join(SPECPATH, "guardrail_design.py"))["APP_VERSION"].lower(),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

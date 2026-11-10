@@ -50,7 +50,7 @@ DESIGN_REFERENCES = {
     "DEFAULT_TERMINAL_SECTION_FT": "GR-4 (existing application interpretation)",
 }
 
-APP_VERSION = "V8.5.2"
+APP_VERSION = "V8.5.3"
 
 
 INCR_GUARDRAIL_FT = 12.5
