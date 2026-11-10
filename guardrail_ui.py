@@ -303,6 +303,11 @@ def ui_main():
         anchor="center", padding=(8, 7),
     )
     clear_zone_used_label.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(9, 2))
+    clear_zone_reference_label = ttk.Label(
+        design_frame, text="Using Clear-Zone Table 9-2-A (New Construction)",
+        style="Subtitle.TLabel", background=panel_bg,
+    )
+    clear_zone_reference_label.grid(row=11, column=0, columnspan=2, sticky="w", pady=(2, 0))
 
     pdf_frame = ttk.LabelFrame(content, text="Calculation Package Output", padding=12, style="Section.TLabelframe")
     pdf_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 10))
@@ -389,8 +394,10 @@ def ui_main():
         if LA_MODES[la_mode_var.get()] != "clearzone":
             clear_zone_used_var.set("")
             clear_zone_used_label.grid_remove()
+            clear_zone_reference_label.grid_remove()
             return
         clear_zone_used_label.grid()
+        clear_zone_reference_label.grid()
         try:
             selected_la = compute_clear_zone(int(speed_var.get()), float(_first_number(adt_var.get())))
             clear_zone_used_var.set(f"AUTOMATIC CLEAR ZONE:  LA USED = {selected_la:.4f} FT")
