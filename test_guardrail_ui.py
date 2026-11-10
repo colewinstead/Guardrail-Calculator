@@ -43,6 +43,15 @@ class InputStateTests(unittest.TestCase):
         self.ui["facility_var"].set("Divided Highway")
         self.ui["update_conditional_fields"]()
 
+    def test_clear_zone_reference_follows_hazard_offset_source(self):
+        label = self.ui["clear_zone_reference_label"]
+        self.assertEqual(label.cget("text"), "Using Clear-Zone Table 9-2-A (New Construction)")
+        self.assertEqual(label.winfo_manager(), "grid")
+        self.ui["la_mode_var"].set("Enter Hazard Offset Directly")
+        self.assertEqual(label.winfo_manager(), "")
+        self.ui["la_mode_var"].set("Select from Clear-Zone Table")
+        self.assertEqual(label.winfo_manager(), "grid")
+
     def test_primary_button_contrast_in_each_interactive_state(self):
         def luminance(color):
             channels = [int(color[index:index + 2], 16) / 255 for index in (1, 3, 5)]
