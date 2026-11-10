@@ -49,7 +49,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: guardrail-windows
-          path: dist/guardrail.exe
+          path: dist/guardrail-v*.exe
           if-no-files-found: error
 
   release:
@@ -75,5 +75,5 @@ jobs:
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
             echo "Release $RELEASE_TAG already exists; keeping its published asset."
           else
-            gh release create "$RELEASE_TAG" dist/guardrail.exe --target "$RELEASE_SHA" --title "Guardrail Calculator $APP_VERSION" --generate-notes --latest
+            gh release create "$RELEASE_TAG" "dist/guardrail-$RELEASE_TAG.exe" --target "$RELEASE_SHA" --title "Guardrail Calculator $APP_VERSION" --generate-notes --latest
           fi

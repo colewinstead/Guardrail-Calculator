@@ -22,7 +22,7 @@ py -m pip install -r requirements.txt  # Install runtime dependencies
 py guardrail_V8.5.py                  # Launch the desktop application
 py -m unittest discover -v           # Run the complete regression suite
 py -m pip install pyinstaller         # Install the build tool
-py -m PyInstaller guardrail.spec -y   # Build dist/guardrail.exe
+py -m PyInstaller guardrail.spec -y   # Build dist/guardrail-<tag>.exe using APP_VERSION
 ```
 
 ## Coding Style & Naming Conventions
@@ -57,4 +57,4 @@ Recent commits use short, descriptive action phrases, such as `Remove generated 
 
 `build/`, `dist/`, and Python bytecode are ignored. Publish Windows executables through GitHub Releases and keep the README download link current. Commit example exports only when they provide useful, reviewed documentation.
 
-GitHub Actions requires `Version policy` and `Windows tests and executable` before merging into `main`. Every PR runs these checks, including documentation-only PRs. A push to `main` publishes `guardrail.exe` only when `APP_VERSION` increased from the previous `main` revision and both checks pass. The workflow creates the corresponding lowercase `vMAJOR.MINOR.PATCH` tag and GitHub release automatically; do not push release tags manually or overwrite published versions.
+GitHub Actions requires `Version policy` and `Windows tests and executable` before merging into `main`. Every PR runs these checks, including documentation-only PRs. A push to `main` publishes `guardrail-<tag>.exe` (for example, `guardrail-v8.5.3.exe`) only when `APP_VERSION` increased from the previous `main` revision and both checks pass. The workflow creates the corresponding lowercase `vMAJOR.MINOR.PATCH` tag and GitHub release automatically; do not push release tags manually or overwrite published versions.

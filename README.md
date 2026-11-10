@@ -2,7 +2,7 @@
 
 A Windows desktop application for calculating guardrail length-of-need values and producing a PDF calculation package. The calculator is based on the MDOT Roadway Design Manual tables and the included GR-4 reference documents.
 
-Current application version: **V8.5.2**
+Current application version: **V8.5.3**
 
 The source is organized around immutable calculation snapshots, a pure engine,
 and separate report/drawing output modules. See [Python architecture](ARCHITECTURE.md)
@@ -20,7 +20,7 @@ for module responsibilities, characterization coverage, and unresolved engineeri
 
 ## Use the Windows application
 
-Download and run [guardrail.exe](https://github.com/colewinstead/Guardrail-Calculator/releases/latest/download/guardrail.exe). No Python installation is required for the packaged application. See [Releases](https://github.com/colewinstead/Guardrail-Calculator/releases) for available versions.
+Open the [latest release](https://github.com/colewinstead/Guardrail-Calculator/releases/latest) and download the executable under **Assets**. The filename includes the release tag, for example `guardrail-v8.5.3.exe`. No Python installation is required for the packaged application. See [Releases](https://github.com/colewinstead/Guardrail-Calculator/releases) for available versions.
 
 Enter the project and roadway information, select the design parameters, and choose:
 
@@ -113,7 +113,9 @@ py -m pip install pyinstaller
 py -m PyInstaller guardrail.spec -y
 ```
 
-The build produces `dist\guardrail.exe`. Build output is ignored by Git.
+The specification reads `APP_VERSION` from `guardrail_design.py` automatically.
+The build produces `dist\guardrail-v8.5.3.exe` for V8.5.3; future versions use
+the matching lowercase version tag in the filename. Build output is ignored by Git.
 
 GitHub Actions runs the regression suite and builds the Windows executable on
 every push and pull request. Download `guardrail-windows` from the workflow run
@@ -131,8 +133,8 @@ minor for features, and major for breaking changes. See `AGENTS.md` for the full
 policy. Keep the compatibility launcher filename `guardrail_V8.5.py` unchanged.
 
 After the PR merges, passing tests and a successful Windows build automatically
-publish `guardrail.exe` with generated release notes and the matching lowercase
-version tag (for example, `v8.5.1`). Do not push release tags manually. Published
+publish `guardrail-<tag>.exe` (for example, `guardrail-v8.5.3.exe`) with generated
+release notes and the matching lowercase version tag. Do not push release tags manually. Published
 versions are immutable; make a new patch release for corrections. The README's
 latest-release download link continues to point to the latest release. No
 additional GitHub secrets are required.
