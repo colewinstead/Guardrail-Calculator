@@ -28,7 +28,8 @@ jobs:
       - name: Check application version
         id: version
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+          # Feature pushes compare the whole PR; main pushes compare the previous release revision.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || (github.ref == 'refs/heads/main' && github.event.before) || '0000000000000000000000000000000000000000' }}
         run: python .github/scripts/check_version.py --base "$BASE_SHA" --output "$GITHUB_OUTPUT"
 
   test-build:
