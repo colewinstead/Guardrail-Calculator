@@ -87,5 +87,5 @@ class ClearZoneTests(unittest.TestCase):
                 generate_pdf_calc_sheet(pdf, data)
                 text = ' '.join(' '.join(page.extract_text() for page in PdfReader(pdf).pages).split())
                 for expected in ('Table 12-2-B', '3R Rural Non-Freeway', 'Recoverable fill slopes',
-                                 'no automatic cap is applied', 'mid'):
+                                 'it is not applied automatically', 'mid'):
                     self.assertIn(expected, text)

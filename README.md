@@ -2,7 +2,7 @@
 
 A Windows desktop application for calculating guardrail length-of-need values and producing a PDF calculation package. The calculator is based on the MDOT Roadway Design Manual tables and the included GR-4 reference documents.
 
-Current application version: **V8.6.0**
+Current application version: **V9.0.0**
 
 The source is organized around immutable calculation snapshots, a pure engine,
 and separate report/drawing output modules. See [Python architecture](ARCHITECTURE.md)
@@ -25,7 +25,7 @@ Open the [latest release](https://github.com/colewinstead/Guardrail-Calculator/r
 Enter the project and roadway information, select the design parameters, and choose:
 
 - **Calculate** to show results in the application.
-- **Generate PDF** to save a calculation package. The package can include the MDOT reference appendix and can optionally open when complete.
+- **Generate PDF** to save a calculation package. The complete package includes the summary, detailed calculations, and MDOT reference appendices, and can optionally open when complete.
 - **Export DXF** to create either a standalone feet-based plan or a LandXML overlay in real project coordinates. The export dialog collects bridge limits and the applicable GR-4 layout.
 
 ### Keyboard access and screen readers
@@ -161,6 +161,19 @@ bump and do not publish a release. Manual workflow runs also never publish.
 ## Reference documents
 
 The source folder includes the MDOT reference documents used by the calculator, along with example calculation sheets. They provide traceability for the PDF output and should remain with the application when calculation packages need appendices.
+
+### PDF presentation
+
+PDF exports use `<Project> - Guardrail Calculations.pdf`, or `Guardrail Calculations.pdf`
+when the project is blank. Desktop and console exports always create the complete
+package. Legacy report-style arguments remain supported for programmatic callers.
+Equations use embedded STIX math fonts, aligned steps, and stacked fractions
+through Matplotlib MathText (no external LaTeX installation); substitutions
+and results retain four decimal places. The barrier length-of-need reference figure
+is presented in landscape without changing the packaged source PDF.
+
+V9.0.0 removes the summary-only, details-only, and omit-appendix choices from the
+interactive export workflow. Calculation formulas and precision are unchanged.
 
 ## Important
 

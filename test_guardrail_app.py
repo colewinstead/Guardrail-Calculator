@@ -118,7 +118,7 @@ class PdfHandlingTests(unittest.TestCase):
             collision.write_bytes(b"unrelated existing file")
             app.write_calc_pdf(str(out_path), pdf_data(), include_appendix=False)
             self.assertEqual(collision.read_bytes(), b"unrelated existing file")
-            self.assertEqual(len(PdfReader(out_path).pages), 2)
+            self.assertEqual(len(PdfReader(out_path).pages), 3)
             self.assertEqual(set(Path(folder).iterdir()), {collision, out_path})
 
     def test_nested_exports_use_distinct_temp_files(self):
@@ -138,7 +138,7 @@ class PdfHandlingTests(unittest.TestCase):
                 app.write_calc_pdf(str(out_path), pdf_data(), include_appendix=False)
             self.assertEqual(len(set(temp_paths)), 2)
             self.assertEqual(list(Path(folder).iterdir()), [out_path])
-            self.assertEqual(len(PdfReader(out_path).pages), 2)
+            self.assertEqual(len(PdfReader(out_path).pages), 3)
 
     def test_failed_render_cleans_temp_and_preserves_destination(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -177,7 +177,7 @@ class PdfHandlingTests(unittest.TestCase):
             out_path = Path(folder) / "package.pdf"
             self.assertTrue(app.write_calc_pdf(str(out_path), pdf_data()))
             reader = PdfReader(out_path)
-            self.assertEqual(len(reader.pages), 7)
+            self.assertEqual(len(reader.pages), 8)
             reference = PdfReader(MODULE_PATH.parent / "GR-4a.pdf")
             self.assertEqual(reader.pages[-1].mediabox, reference.pages[0].mediabox)
             self.assertEqual(len(reader.outline), 3)

@@ -1,0 +1,266 @@
+{
+  "two_lane_two_way-1-0": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "cc931d9a3eebf578e6aab9ba5bf52b859b490dd07e4e82f98affd2540f7cf9c4",
+      "text": "01728255f73930c14bcc6b77f0b95af7497356dc7ad3d87c98e591dd7cf80d22"
+    }
+  ],
+  "two_lane_two_way-1-30": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "eb34b6498f2b4dce17d62b03517934be705a9c67fe7773900571aa8757bb6509",
+      "text": "24ec805a058627abda8d3ce10710eee90019c1da6db5d1064650bfe026a5a196"
+    }
+  ],
+  "two_lane_two_way-2-0": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "f9bb7bca00b5521213a27a0304c398ed0d80c2305670a7d71d234e043ee32850",
+      "text": "69b93ed380c7f0209e39ed20116f3cc6e70ae0f14c3062a5745f9e492a211b2f"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "cab6119a37a3005ee39e17d154bac9d5eca15809e473722e99589f046598639e",
+      "text": "1b1087f977d68684bf24e7ec685e8039a4e12094fcdf72d8a6d7901df1d1c81b"
+    }
+  ],
+  "two_lane_two_way-2-30": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "456622ef2e8183ce0babfcecdece4dd394fb81e304c7573259a7cada07f753f7",
+      "text": "1ff53491203144c15a68d2d970f2df1a9ad1361d5b282881786d0c9f38883abb"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "fd38e5b3cf1d56f2c371b13761ad8501bc4a9daa08f08116279a97b0e051e51a",
+      "text": "6f25b96b01584c584cb7ce1c5ba3265d21041bc19008fab619fcac3ecdb96f89"
+    }
+  ],
+  "two_lane_two_way-3-0": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "cc931d9a3eebf578e6aab9ba5bf52b859b490dd07e4e82f98affd2540f7cf9c4",
+      "text": "01728255f73930c14bcc6b77f0b95af7497356dc7ad3d87c98e591dd7cf80d22"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "830a5572efb8cc5aafdf9cb8a6827aa67b938d1d0d78014426b17da97dade1bb",
+      "text": "488ef5ba23ce179d59548c007a8a6626f1e8b14be5e99834e948d2e573f9b9b8"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "8ec1dd8b2898e25cafa0fad22fded6b2d186b8c43343eda3436737c1754ca703",
+      "text": "5c52e06294f25cf76d9844ea00f1f99ea1195a3718fe5a3289974def450a88af"
+    }
+  ],
+  "two_lane_two_way-3-30": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "eb34b6498f2b4dce17d62b03517934be705a9c67fe7773900571aa8757bb6509",
+      "text": "24ec805a058627abda8d3ce10710eee90019c1da6db5d1064650bfe026a5a196"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "c9956f75f316dcb82faed9504ef2f66ae96cf5521b2491b4a111a79025e57ec5",
+      "text": "12ba8e9a5dd60a24ed68b28b07976c9bbda51eafecd03ac426e11d8a3d181124"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "e9067b293a2e7531a142ab6e34a853100721fe93a032209e58975e710d5dcebc",
+      "text": "41a7053f3eb7349ddfb228d7499ac11ab57cf16ac78ed228a2db1ce87702421e"
+    }
+  ],
+  "divided_highway-1-0": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "87d0083b38b75984fb9bf4895f9fe865fe7ed833f5edfc99ec11d93ad663c5db",
+      "text": "6e059e0bb23f616f9658ca319add6d36d5805d1cd9d157614a23462b9c55c3eb"
+    }
+  ],
+  "divided_highway-1-30": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "3611bf3f950e7f2f3671e5da57fddd4144914fcd0db3c8e19d1282d179780303",
+      "text": "5f1e6db5df1d4c77b117529441338693cd7d66c687179b3930ac09d9b709c789"
+    }
+  ],
+  "divided_highway-2-0": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "f9bb7bca00b5521213a27a0304c398ed0d80c2305670a7d71d234e043ee32850",
+      "text": "69b93ed380c7f0209e39ed20116f3cc6e70ae0f14c3062a5745f9e492a211b2f"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "cab6119a37a3005ee39e17d154bac9d5eca15809e473722e99589f046598639e",
+      "text": "1b1087f977d68684bf24e7ec685e8039a4e12094fcdf72d8a6d7901df1d1c81b"
+    }
+  ],
+  "divided_highway-2-30": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "456622ef2e8183ce0babfcecdece4dd394fb81e304c7573259a7cada07f753f7",
+      "text": "1ff53491203144c15a68d2d970f2df1a9ad1361d5b282881786d0c9f38883abb"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "fd38e5b3cf1d56f2c371b13761ad8501bc4a9daa08f08116279a97b0e051e51a",
+      "text": "6f25b96b01584c584cb7ce1c5ba3265d21041bc19008fab619fcac3ecdb96f89"
+    }
+  ],
+  "divided_highway-3-0": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "87d0083b38b75984fb9bf4895f9fe865fe7ed833f5edfc99ec11d93ad663c5db",
+      "text": "6e059e0bb23f616f9658ca319add6d36d5805d1cd9d157614a23462b9c55c3eb"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "830a5572efb8cc5aafdf9cb8a6827aa67b938d1d0d78014426b17da97dade1bb",
+      "text": "488ef5ba23ce179d59548c007a8a6626f1e8b14be5e99834e948d2e573f9b9b8"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "8ec1dd8b2898e25cafa0fad22fded6b2d186b8c43343eda3436737c1754ca703",
+      "text": "5c52e06294f25cf76d9844ea00f1f99ea1195a3718fe5a3289974def450a88af"
+    }
+  ],
+  "divided_highway-3-30": [
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "3611bf3f950e7f2f3671e5da57fddd4144914fcd0db3c8e19d1282d179780303",
+      "text": "5f1e6db5df1d4c77b117529441338693cd7d66c687179b3930ac09d9b709c789"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "c9956f75f316dcb82faed9504ef2f66ae96cf5521b2491b4a111a79025e57ec5",
+      "text": "12ba8e9a5dd60a24ed68b28b07976c9bbda51eafecd03ac426e11d8a3d181124"
+    },
+    {
+      "box": [
+        0,
+        0,
+        612,
+        792
+      ],
+      "stream": "e9067b293a2e7531a142ab6e34a853100721fe93a032209e58975e710d5dcebc",
+      "text": "41a7053f3eb7349ddfb228d7499ac11ab57cf16ac78ed228a2db1ce87702421e"
+    }
+  ]
+}

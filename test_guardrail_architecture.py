@@ -31,6 +31,7 @@ from guardrail_report import report_payload
 from guardrail_validation import create_roadway
 
 FIXTURE = json.loads(Path(__file__).with_name("test_fixtures").joinpath("phase3_baseline.json").read_text())
+PDF_LAYOUT = json.loads(Path(__file__).with_name("test_fixtures").joinpath("pdf_refinement_layout.json").read_text())
 
 
 def digest(value):
@@ -71,16 +72,17 @@ class BaselineCharacterizationTests(unittest.TestCase):
                     route_location="SR 8", job_number="123", prepared_by="Author", checked_by="Reviewer",
                     calculation_date="2026-10-01")
                 self.assertEqual(data["__app_version"], APP_VERSION)
-                # Keep the captured V8.5 layout baseline stable across version bumps.
+                # Normalize version labels for the historical payload and current layout fixtures.
                 data["__app_version"] = "V8.5"
-                self.assertEqual(digest(data), FIXTURE["reports"][key]["payload"])
+                legacy_payload = {name: val for name, val in data.items() if name != "__math_inputs"}
+                self.assertEqual(digest(legacy_payload), FIXTURE["reports"][key]["payload"])
                 buffer = BytesIO()
                 app.generate_pdf_calc_sheet(buffer, data)
                 pages = [{"box": list(page.mediabox),
                           "stream": hashlib.sha256(page.get_contents().get_data()).hexdigest(),
                           "text": hashlib.sha256(page.extract_text().encode()).hexdigest()}
                          for page in PdfReader(buffer).pages]
-                self.assertEqual(pages, FIXTURE["reports"][key]["pages"])
+                self.assertEqual(pages, PDF_LAYOUT[key])
 
     def test_straight_and_curved_drawing_fingerprints_for_both_layouts(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -70,6 +70,11 @@ def build_pdf_data(
         "__generated_time": generated_time,
         "__pdf_style": int(pdf_style_num),
         "__facility_code": facility,
+        "__math_inputs": {
+            "LA": f"{LA:.4f}", "LR": f"{LR:.4f}", "L1": f"{L1:.4f}",
+            "L2_near": f"{L2:.4f}", "L2_opp": f"{L2_opp:.4f}",
+            "q": f"{b_over_a:.4f}", "flared": a_over_b != 0,
+        },
         "__x_eq_opp": x_eq_opp,
         "__x_eq_near": x_eq_near,
         "__b_required_eq": (
@@ -191,8 +196,8 @@ def report_payload(report: ReportModel) -> dict:
         data["Clear-Zone Selection"] = barrier.clear_zone_selection.value
         if three_r:
             data["Clear-Zone Note"] = (
-                "Recoverable fill slopes/non-curbed facilities only. Use 3R distances where "
-                "Chapter 9 distances are infeasible. Starred ranges may be limited to 15 ft "
-                "for feasibility and a consistent roadway template; no automatic cap is applied."
+                "Recoverable fill slopes, non-curbed facilities only. Use where Chapter 9 is "
+                "infeasible. The starred 15-ft allowance requires project review; "
+                "it is not applied automatically."
             )
     return data

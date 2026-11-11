@@ -89,10 +89,9 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
     styles.add(ParagraphStyle(
         name="Equation",
         parent=styles["BodyText"],
-        fontName="Courier",
-        fontSize=8,
-        leading=11,
-        leftIndent=8,
+        fontName="Times-Roman",
+        fontSize=11,
+        leading=14,
         textColor=dark_gray,
     ))
     styles.add(ParagraphStyle(
@@ -241,40 +240,53 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
         ]))
         return table
 
-    def calculation_block(side_name, x_eq_key, x_min_key, flared_key, rounded_key, design_key, output_rows):
-        body = [
-            p(side_name, "Subheading"),
-            key_value_table([
-                ("Minimum X", f"{value(x_min_key)} ft"),
-                ("Required Rail Length", f"{value(flared_key)} ft"),
-                ("Rounded Rail Length", f"{value(rounded_key)} ft"),
-                ("Final Overall Length", f"{value(design_key)} ft"),
-            ]),
-            Spacer(1, 4),
-            p("<b>Length-of-need equation and substitution</b>"),
-            p(value(x_eq_key), "Equation"),
-            Spacer(1, 4),
-        ]
-        calc_rows = []
-        for label, equation, result in output_rows:
-            calc_rows.append([
-                p(f"<b>{label}</b>"),
-                p(equation, "Equation"),
-                p(f"<b>{result} ft</b>"),
-            ])
-        table = Table(calc_rows, colWidths=[1.25 * inch, 3.8 * inch, 1.35 * inch])
-        table.setStyle(TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.45, medium_gray),
-            ("BACKGROUND", (0, 0), (0, -1), light_blue),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (-1, 0), (-1, -1), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ]))
-        body.append(table)
+    def calculation_block(side_name, x_eq_key, x_min_key, output_rows):
+        from guardrail_pdf_math import MathEquation
+
+        near = x_eq_key == "__x_eq_near"
+        body = [section("NEAR SIDE - OUTPUTS A AND B" if near else "OPPOSING SIDE - OUTPUTS C AND D"),
+                p(side_name, "Subheading")]
+        inputs = data.get("__math_inputs")
+        if not inputs:
+            body.append(p(value(x_eq_key), "Equation"))
+            body.extend(p(equation, "Equation") for _, equation, _ in output_rows)
+            return KeepTogether(body)
+        la, lr, l1, q = (inputs[key] for key in ("LA", "LR", "L1", "q"))
+        l2 = inputs["L2_near" if near else "L2_opp"]
+        if inputs["flared"]:
+            symbolic = r"\dfrac{L_A + q L_1 - L_2}{q + \frac{L_A}{L_R}}"
+            substitution = rf"\dfrac{{{la} + {q} \times {l1} - {l2}}}{{{q} + \frac{{{la}}}{{{lr}}}}}"
+        else:
+            symbolic = r"\dfrac{L_R(L_A - L_2)}{L_A}"
+            substitution = rf"\dfrac{{{lr}({la} - {l2})}}{{{la}}}"
+        required, rail, overall = ("B", "B", "A") if near else ("D", "D", "C")
+        terminal = data["Terminal section (ft)"]
+        required_value, rail_value, overall_value = (row[2] for row in output_rows)
+        increment = f"{INCR_GUARDRAIL_FT:.4f}"
+        body.extend([
+            MathEquation(r"X_{\min}", symbolic),
+            MathEquation("", substitution, r"\approx"),
+            MathEquation("", rf"\mathbf{{{data[x_min_key]}}}\;\mathrm{{ft}}", r"\approx"),
+            Spacer(1, 8),
+            p("Required rail length", "Subheading"),
+            MathEquation(rf"{required}_{{\mathrm{{req}}}}", r"X_{\min} - L_1 - T"),
+            MathEquation("", rf"{data[x_min_key]} - {l1} - {terminal}"),
+            MathEquation("", rf"\mathbf{{{required_value}}}\;\mathrm{{ft}}", r"\approx"),
+            Spacer(1, 8),
+            p("Round up to the next 12.5-ft increment", "Subheading"),
+            MathEquation(rail, rf"{increment}\left\lceil\frac{{\max({increment},\;{required}_{{\mathrm{{req}}}})}}{{{increment}}}\right\rceil"),
+            MathEquation("", rf"{increment}\left\lceil\frac{{\max({increment},\;{required_value})}}{{{increment}}}\right\rceil"),
+            MathEquation("", rf"\mathbf{{{rail_value}}}\;\mathrm{{ft}}"),
+            Spacer(1, 8),
+            p("Overall installed length", "Subheading"),
+            MathEquation(overall, rf"{rail} + L_1 + T"),
+            MathEquation("", rf"{rail_value} + {l1} + {terminal}"),
+            MathEquation("", rf"\mathbf{{{overall_value}}}\;\mathrm{{ft}}", r"\approx"),
+        ])
         return KeepTogether(body)
+
+    def clear_zone_note():
+        return p(value("Clear-Zone Note"), "Note") if data.get("Clear-Zone Note") else Spacer(1, 0)
 
     story = [
         Paragraph("GUARDRAIL LENGTH-OF-NEED CALCULATIONS", styles["DocumentTitle"]),
@@ -289,7 +301,7 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
             ("Design Speed", f"{value('Design speed (mph)')} mph"),
             ("Design ADT", value("Design ADT")),
             *[(key, value(key)) for key in (
-                "Clear-Zone Criteria", "Clear-Zone Slope", "Clear-Zone Selection", "Clear-Zone Note",
+                "Clear-Zone Criteria", "Clear-Zone Slope", "Clear-Zone Selection",
             ) if key in data],
             ("Runout Length, LR", f"{value('LR (ft)')} ft"),
             ("Hazard Offset, LA", f"{value('LA (ft)')} ft"),
@@ -301,6 +313,8 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
             ("Flare Rate, a/b", value("Flare rate a/b")),
             ("Guardrail Increment", f"{INCR_GUARDRAIL_FT:.4f} ft"),
         ]),
+        Spacer(1, 4),
+        clear_zone_note(),
         section("FINAL DESIGN OUTPUTS"),
         output_boxes(),
         Spacer(1, 5),
@@ -346,21 +360,20 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
                 ("Design Speed", f"{value('Design speed (mph)')} mph"),
                 ("Design ADT", value("Design ADT")),
                 *[(key, value(key)) for key in (
-                    "Clear-Zone Criteria", "Clear-Zone Slope", "Clear-Zone Selection", "Clear-Zone Note",
+                    "Clear-Zone Criteria", "Clear-Zone Slope", "Clear-Zone Selection",
                 ) if key in data],
                 ("LA", f"{value('LA (ft)')} ft"),
                 ("L1", f"{value('L1 (ft)')}"),
                 ("Terminal Section", f"{value('Terminal section (ft)')} ft"),
                 ("LR", f"{value('LR (ft)')} ft"),
             ]),
-            section("NEAR SIDE - OUTPUTS A AND B"),
+            Spacer(1, 4),
+            clear_zone_note(),
+            p("<i>q</i> = b/a (flare ratio); <i>T</i> = terminal section length. Lengths in feet.", "Note"),
             calculation_block(
                 "Near-Side Length of Need",
                 "__x_eq_near",
                 "X(min) near (ft)",
-                "Flared portion near (ft)",
-                "Flared portion rounded near (ft)",
-                "X(design) near (ft)",
                 [
                     ("B Required", value("__b_required_eq"), value("B required (ft)")),
                     ("Output B", value("__b_round_eq"), value("B (near) (ft)")),
@@ -368,14 +381,10 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
                 ],
             ),
             Spacer(1, 8),
-            section("OPPOSING SIDE - OUTPUTS C AND D"),
             calculation_block(
                 "Opposing-Side Length of Need",
                 "__x_eq_opp",
                 "X(min) opp (ft)",
-                "Flared portion opp (ft)",
-                "Flared portion rounded opp (ft)",
-                "X(design) opp (ft)",
                 [
                     ("D Required", value("__d_required_eq"), value("D required (ft)")),
                     ("Output D", value("__d_round_eq"), value("D (opp) (ft)")),
@@ -385,7 +394,8 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
             Spacer(1, 8),
             p(
                 "All displayed calculated lengths are shown to four decimal places. Internal calculation precision and "
-                "the established 12.5000-foot increment rounding method are unchanged.",
+                "the established 12.5000-foot increment rounding method are unchanged. "
+                "Substitutions show rounded values; results use full precision.",
                 "Note",
             ),
         ])

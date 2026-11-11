@@ -20,7 +20,7 @@ a = Analysis(
     ],
     hiddenimports=collect_submodules("pypdf") + collect_submodules("ezdxf"),
     hookspath=[],
-    hooksconfig={},
+    hooksconfig={"matplotlib": {"backends": ["Agg"]}},
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
