@@ -5,6 +5,16 @@ import os
 import runpy
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
+# Fail before packaging if the selected Python environment lacks PDF dependencies.
+# PyInstaller otherwise emits a warning but can still produce a broken executable.
+try:
+    from matplotlib.mathtext import MathTextParser
+except ImportError as exc:
+    raise RuntimeError(
+        "Matplotlib is required to build Guardrail Calculator. "
+        "Run: py -m pip install -r requirements.txt"
+    ) from exc
+
 block_cipher = None
 
 app_script = "guardrail_V8.5.py"
