@@ -52,8 +52,10 @@ jobs:
         run: |
           $exe = Get-ChildItem dist -Filter "guardrail-v*.exe" | Select-Object -First 1
           if (-not $exe) { throw "No Windows executable found" }
-          & $exe.FullName --check-pdf-dependencies
-          if ($LASTEXITCODE -ne 0) { throw "Packaged PDF dependency check failed (exit $LASTEXITCODE)" }
+          # This is a GUI subsystem executable; PowerShell's call operator does
+          # not reliably wait for it or populate $LASTEXITCODE.
+          $process = Start-Process -FilePath $exe.FullName -ArgumentList "--check-pdf-dependencies" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged PDF dependency check failed (exit $($process.ExitCode))" }
       - uses: actions/upload-artifact@v7
         with:
           name: guardrail-windows
