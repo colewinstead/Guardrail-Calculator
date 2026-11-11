@@ -47,6 +47,6 @@ if __name__ == "__main__":
     if "--check-pdf-dependencies" in sys.argv[1:]:
         # Run this inside the frozen executable to catch missing packaging imports.
         from guardrail_pdf_math import MathEquation
-        MathEquation(r"X_{\\min}", r"\\frac{1}{2}")
+        MathEquation(r"X_{\min}", r"\frac{1}{2}")
     else:
         ui_main()
