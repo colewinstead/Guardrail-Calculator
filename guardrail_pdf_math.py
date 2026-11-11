@@ -34,7 +34,10 @@ class MathEquation(Flowable):
                 continue
             x = 48 - part.width if index == 0 else (54 if index == 1 else 70)
             runs = []
-            for font, size, codepoint, offset_x, offset_y in part.glyphs:
+            for glyph in part.glyphs:
+                font, size, codepoint = glyph[:3]
+                # Matplotlib 3.11 inserts a glyph index before the x/y offsets.
+                offset_x, offset_y = glyph[-2:]
                 name = "GRMath-" + font.postscript_name
                 if name not in pdfmetrics.getRegisteredFontNames():
                     pdfmetrics.registerFont(TTFont(name, font.fname))

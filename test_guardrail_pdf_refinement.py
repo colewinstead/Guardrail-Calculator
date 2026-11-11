@@ -66,6 +66,32 @@ class PdfRefinementTests(unittest.TestCase):
         self.assertIn('155.6458', text)
         self.assertIn('68.1458', text)
 
+    def test_five_and_six_field_mathtext_glyphs_render_identically(self):
+        from guardrail_pdf_math import MathEquation
+        from reportlab.platypus import SimpleDocTemplate
+
+        streams = []
+        for indexed in (False, True):
+            with self.subTest(indexed=indexed):
+                equation = MathEquation(r"X_{\min}", r"\dfrac{L_A}{L_R} \approx 88.7376")
+                parts = []
+                for part in equation.parts:
+                    if part is None:
+                        parts.append(None)
+                        continue
+                    glyphs = []
+                    for glyph in part.glyphs:
+                        old = (*glyph[:3], *glyph[-2:])
+                        glyphs.append((*old[:3], 123, *old[3:]) if indexed else old)
+                    parts.append(part._replace(glyphs=glyphs))
+                equation.parts = parts
+                pdf = BytesIO()
+                SimpleDocTemplate(pdf).build([equation])
+                page = PdfReader(pdf).pages[0]
+                self.assertIn('88.7376', page.extract_text())
+                streams.append(page.get_contents().get_data())
+        self.assertEqual(streams[0], streams[1])
+
     def test_only_reference_figure_rotates_and_source_file_is_unchanged(self):
         source = Path(__file__).with_name('gr manual.pdf')
         original = source.read_bytes()
