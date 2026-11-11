@@ -191,6 +191,23 @@ class InputStateTests(unittest.TestCase):
         self.assertEqual(drawing.opposing_added_distance, 88)
         self.assertEqual(self.ui["median_w_var"].get(), "60")
 
+    def test_pdf_export_has_one_package_choice_and_clean_default_name(self):
+        self.assertNotIn("pdf_style_var", self.ui)
+        self.assertNotIn("include_appendix_var", self.ui)
+        self.ui["project_var"].set("SR8")
+        with patch("tkinter.filedialog.asksaveasfilename", return_value="package.pdf") as save, \
+                patch("guardrail_ui.write_report", return_value=True) as write, \
+                patch("tkinter.messagebox.showinfo"), patch("tkinter.messagebox.showerror") as errors:
+            self.ui["generate_pdf_action"]()
+        errors.assert_not_called()
+        self.assertEqual(save.call_args.kwargs["initialfile"], "SR8 - Guardrail Calculations.pdf")
+        self.assertEqual(write.call_args.args[1].style, ReportStyle.COMPLETE)
+        self.assertTrue(write.call_args.kwargs.get("include_appendix", True))
+        self.ui["project_var"].set("")
+        with patch("tkinter.filedialog.asksaveasfilename", return_value="") as save:
+            self.ui["pick_pdf_path"]()
+        self.assertEqual(save.call_args.kwargs["initialfile"], "Guardrail Calculations.pdf")
+
     def test_pdf_uses_snapshot_when_form_changes_during_save_dialog(self):
         self.ui["project_var"].set("Original Project")
         expected = self.ui["calculate_model"]()

@@ -184,7 +184,7 @@ def main():
         print(r"  C:\Users\colew\Documents\Guardrail Calcs")
         out_folder = input("Folder path (Enter = current folder): ").strip()
 
-        default_name = _safe_filename(f"{project}_guardrail_calc_sheet" if project else "guardrail_calc_sheet")
+        default_name = _safe_filename(f"{project} - Guardrail Calculations" if project else "Guardrail Calculations")
         out_name = input(f"PDF filename (Enter for '{default_name}'): ").strip()
         if not out_name:
             out_name = default_name
@@ -192,11 +192,6 @@ def main():
 
         full_pdf_path = _join_path(out_folder, out_name)
 
-        pdf_style = prompt_choice(
-            "PDF style:",
-            ["1 (summary)", "2 (calc boxes only)", "3 (summary + example calc boxes)"]
-        )
-        pdf_style_num = int(pdf_style.split()[0])
         pdf_data = build_pdf_data(
             project=project,
             facility=facility,
@@ -209,7 +204,7 @@ def main():
             L1=L1,
             terminal_section=terminal_section,
             a_over_b=a_over_b,
-            pdf_style_num=pdf_style_num,
+            pdf_style_num=3,
             results=results,
             generated_time=datetime.now().strftime("%Y-%m-%d %H:%M"),
         )

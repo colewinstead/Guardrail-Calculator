@@ -39,7 +39,8 @@ selection, but exported values come from the accepted calculation snapshot.
 | `guardrail_engine.py` | Pure calculations and typed results; no UI, filesystem, or output-library dependencies. |
 | `guardrail_presentation.py` | Feet/inches and filename/path formatting. |
 | `guardrail_report.py` | Snapshot-to-report formatting and compatibility payload validation. |
-| `guardrail_pdf.py` | Existing ReportLab page layout and rendering. |
+| `guardrail_pdf.py` | ReportLab page layout and rendering. |
+| `guardrail_pdf_math.py` | MathText layout rendered as searchable vector math with embedded STIX fonts. |
 | `guardrail_pdf_files.py` | Unique temporary files, atomic replacement, appendices, native page sizes, and bookmarks. |
 | `guardrail_resources.py` | Module-relative/PyInstaller reference-PDF lookup. |
 | `guardrail_alignment.py` | Lines/arcs, station equations, geometric validation, and adaptive offset sampling. |
@@ -65,7 +66,10 @@ from report strings. Drawing geometry uses frozen line/text entities; the legacy
 
 ## Characterization and removal evidence
 
-`test_fixtures/phase3_baseline.json` was captured before extraction. Tests cover
+`test_fixtures/phase3_baseline.json` was captured before extraction.
+The original engineering and legacy report payload baselines remain unchanged.
+`test_fixtures/pdf_refinement_layout.json` records the requested V9 PDF layout
+using the pinned MathText renderer; only presentation page fingerprints changed. Tests cover
 2,592 numeric outputs, twelve report payloads/PDF page streams, and twelve drawing
 fingerprints across facilities, layouts, straight geometry, and both arc rotations.
 Additional tests cover immutable snapshots, dependency isolation, output reuse,

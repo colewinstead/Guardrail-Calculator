@@ -51,11 +51,6 @@ def ui_main():
         "Maximum": ClearZoneSelection.MAXIMUM,
         "Custom": ClearZoneSelection.CUSTOM,
     }
-    PDF_STYLES = {
-        "Complete Calculation Package": ReportStyle.COMPLETE,
-        "Summary Only": ReportStyle.SUMMARY,
-        "Detailed Calculations Only": ReportStyle.DETAIL,
-    }
 
     root = tk.Tk()
     root.title(f"Guardrail Length-of-Need Calculator {APP_VERSION}")
@@ -176,9 +171,7 @@ def ui_main():
     clear_zone_used_var = tk.StringVar()
 
     # Output options
-    pdf_style_var = tk.StringVar(value="Complete Calculation Package")
     pdf_path_var = tk.StringVar()
-    include_appendix_var = tk.BooleanVar(value=True)
     auto_open_var = tk.BooleanVar(value=True)
     status_var = tk.StringVar(value="Ready")
 
@@ -325,7 +318,9 @@ def ui_main():
     pdf_frame = ttk.LabelFrame(content, text="Calculation Package Output", padding=12, style="Section.TLabelframe")
     pdf_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 10))
     pdf_frame.columnconfigure(1, weight=1)
-    pdf_style_combo = add_field(pdf_frame, 0, "Package Content", pdf_style_var, "combo", list(PDF_STYLES), width=32)
+    ttk.Label(pdf_frame, text="Complete package: summary, calculations, and MDOT references").grid(
+        row=0, column=0, columnspan=2, sticky="w", pady=4,
+    )
     ttk.Label(pdf_frame, text="PDF File").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=4)
     path_frame = ttk.Frame(pdf_frame)
     path_frame.grid(row=1, column=1, sticky="ew", pady=4)
@@ -334,8 +329,8 @@ def ui_main():
 
     def pick_pdf_path():
         default_name = _safe_filename(
-            f"{project_var.get().strip()}_guardrail_calc_sheet"
-            if project_var.get().strip() else "guardrail_calc_sheet"
+            f"{project_var.get().strip()} - Guardrail Calculations"
+            if project_var.get().strip() else "Guardrail Calculations"
         )
         path = filedialog.asksaveasfilename(
             title="Save Guardrail Calculation Package",
@@ -350,8 +345,7 @@ def ui_main():
     ttk.Button(path_frame, text="Browse...", command=pick_pdf_path).grid(row=0, column=1, padx=(8, 0))
     checks = ttk.Frame(pdf_frame)
     checks.grid(row=2, column=0, columnspan=2, sticky="w", pady=(5, 0))
-    ttk.Checkbutton(checks, text="Include MDOT reference appendix", variable=include_appendix_var).pack(side="left")
-    ttk.Checkbutton(checks, text="Open PDF after generation", variable=auto_open_var).pack(side="left", padx=(24, 0))
+    ttk.Checkbutton(checks, text="Open PDF after generation", variable=auto_open_var).pack(side="left")
 
     results_frame = ttk.LabelFrame(content, text="Calculated Results", padding=12, style="Section.TLabelframe")
     results_frame.grid(row=4, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
@@ -513,7 +507,7 @@ def ui_main():
     def generate_pdf_action():
         try:
             snapshot = calculate_model()
-            report = ReportModel(snapshot, PDF_STYLES[pdf_style_var.get()], datetime.now().strftime("%Y-%m-%d %H:%M"))
+            report = ReportModel(snapshot, ReportStyle.COMPLETE, datetime.now().strftime("%Y-%m-%d %H:%M"))
             pdf_data = report_payload(report)
             show_results(snapshot.result)
             out_path = pdf_path_var.get().strip()
@@ -526,21 +520,17 @@ def ui_main():
                 out_path,
                 report,
                 auto_open=auto_open_var.get(),
-                include_appendix=include_appendix_var.get(),
             )
             pdf_path_var.set(out_path)
             status_var.set(f"PDF generated: {out_path}")
-            if include_appendix_var.get():
-                manifest = appendix_manifest(pdf_data)
-                included = [title for _, title, path in manifest if os.path.exists(path)]
-                missing = [os.path.basename(path) for _, _, path in manifest if not os.path.exists(path)]
-                appendix_note = "\n\nIncluded references:\n- " + "\n- ".join(included)
-                if missing:
-                    appendix_note += "\n\nMissing embedded references:\n- " + "\n- ".join(missing)
-                elif appendix_used:
-                    appendix_note += "\n\nAll expected embedded references were included."
-            else:
-                appendix_note = "\n\nReference appendices were not requested."
+            manifest = appendix_manifest(pdf_data)
+            included = [title for _, title, path in manifest if os.path.exists(path)]
+            missing = [os.path.basename(path) for _, _, path in manifest if not os.path.exists(path)]
+            appendix_note = "\n\nIncluded references:\n- " + "\n- ".join(included)
+            if missing:
+                appendix_note += "\n\nMissing embedded references:\n- " + "\n- ".join(missing)
+            elif appendix_used:
+                appendix_note += "\n\nAll expected embedded references were included."
             messagebox.showinfo("Calculation Package Generated", f"PDF written to:\n{out_path}{appendix_note}")
         except Exception as e:
             if not isinstance(e, (ValueError, OSError)):

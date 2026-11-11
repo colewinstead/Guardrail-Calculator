@@ -17,7 +17,7 @@ def fmt_ft_in(x_ft: float) -> str:
 def _safe_filename(name: str) -> str:
     name = name.strip()
     if not name:
-        return "guardrail_calc_sheet.pdf"
+        return "Guardrail Calculations.pdf"
     # Remove invalid Windows filename characters
     name = re.sub(r'[<>:"/\\|?*]+', "_", name)
     if not name.lower().endswith(".pdf"):

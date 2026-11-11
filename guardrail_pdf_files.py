@@ -56,6 +56,10 @@ def merge_with_appendices(
 
         appendix_reader = PdfReader(appendix_path)
         for page in appendix_reader.pages:
+            if (os.path.basename(appendix_path).lower() == "gr manual.pdf"
+                    and "Figure 9-6-A" in (page.extract_text() or "")):
+                page.rotate(90)
+                page.transfer_rotation_to_content()
             page_index = len(writer.pages)
             writer.add_page(page)
             appendix_pages.append((page_index, f"{appendix_label} - {title}"))
