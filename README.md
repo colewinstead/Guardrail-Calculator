@@ -2,7 +2,7 @@
 
 A Windows desktop application for calculating guardrail length-of-need values and producing a PDF calculation package. The calculator is based on the MDOT Roadway Design Manual tables and the included GR-4 reference documents.
 
-Current application version: **V9.0.1**
+Current application version: **V9.0.2**
 
 The source is organized around immutable calculation snapshots, a pure engine,
 and separate report/drawing output modules. See [Python architecture](ARCHITECTURE.md)
@@ -122,12 +122,17 @@ Keep these reference PDFs in the same folder as the script so they can be embedd
 
 ## Build the executable
 
-The repository includes a PyInstaller specification that bundles the application and its required reference PDFs.
+The repository includes a PyInstaller specification that bundles the application and its required reference PDFs. On a new Windows computer, install **all runtime dependencies** before building (installing PyInstaller alone does not install Matplotlib):
 
 ```powershell
+# Run from the repository root using the same Python interpreter for every command.
+py -m pip install -r requirements.txt
 py -m pip install pyinstaller
-py -m PyInstaller guardrail.spec -y
+py -c "import matplotlib; print(matplotlib.__version__)"
+py -m PyInstaller --clean --noconfirm guardrail.spec
 ```
+
+The Matplotlib check should print the installed version before the build starts. If it raises `ModuleNotFoundError`, install the requirements in the Python environment used by `py -m PyInstaller` and rebuild; otherwise the executable may be missing PDF-generation dependencies.
 
 The specification reads `APP_VERSION` from `guardrail_design.py` automatically.
 The build produces `dist\guardrail-v8.5.3.exe` for V8.5.3; future versions use

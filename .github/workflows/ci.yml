@@ -47,6 +47,15 @@ jobs:
         run: python -m unittest discover -v
       - name: Build Windows executable
         run: python -m PyInstaller guardrail.spec -y
+      - name: Verify packaged PDF dependencies
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Filter "guardrail-v*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "No Windows executable found" }
+          # This is a GUI subsystem executable; PowerShell's call operator does
+          # not reliably wait for it or populate $LASTEXITCODE.
+          $process = Start-Process -FilePath $exe.FullName -ArgumentList "--check-pdf-dependencies" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged PDF dependency check failed (exit $($process.ExitCode))" }
       - uses: actions/upload-artifact@v7
         with:
           name: guardrail-windows

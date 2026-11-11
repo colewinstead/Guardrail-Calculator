@@ -3,7 +3,17 @@
 
 import os
 import runpy
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+# Fail before packaging if the selected Python environment lacks PDF dependencies.
+# PyInstaller otherwise emits a warning but can still produce a broken executable.
+try:
+    from matplotlib.mathtext import MathTextParser
+except ImportError as exc:
+    raise RuntimeError(
+        "Matplotlib is required to build Guardrail Calculator. "
+        "Run: py -m pip install -r requirements.txt"
+    ) from exc
 
 block_cipher = None
 
@@ -17,8 +27,18 @@ a = Analysis(
         ("gr manual.pdf", "."),
         ("GR-4.pdf", "."),
         ("GR-4a.pdf", "."),
+        *collect_data_files("matplotlib"),
     ],
-    hiddenimports=collect_submodules("pypdf") + collect_submodules("ezdxf"),
+    hiddenimports=(
+        collect_submodules("pypdf")
+        + collect_submodules("ezdxf")
+        + [
+            "guardrail_pdf_math",
+            "matplotlib.font_manager",
+            "matplotlib.mathtext",
+            "matplotlib.backends.backend_agg",
+        ]
+    ),
     hookspath=[],
     hooksconfig={"matplotlib": {"backends": ["Agg"]}},
     runtime_hooks=[],
