@@ -288,6 +288,9 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
             ("Facility", value("Facility")),
             ("Design Speed", f"{value('Design speed (mph)')} mph"),
             ("Design ADT", value("Design ADT")),
+            *[(key, value(key)) for key in (
+                "Clear-Zone Criteria", "Clear-Zone Slope", "Clear-Zone Selection", "Clear-Zone Note",
+            ) if key in data],
             ("Runout Length, LR", f"{value('LR (ft)')} ft"),
             ("Hazard Offset, LA", f"{value('LA (ft)')} ft"),
             ("Near-Side Offset, L2", f"{value('Near-side L2 (ft)')} ft"),
@@ -342,6 +345,9 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
             key_value_table([
                 ("Design Speed", f"{value('Design speed (mph)')} mph"),
                 ("Design ADT", value("Design ADT")),
+                *[(key, value(key)) for key in (
+                    "Clear-Zone Criteria", "Clear-Zone Slope", "Clear-Zone Selection", "Clear-Zone Note",
+                ) if key in data],
                 ("LA", f"{value('LA (ft)')} ft"),
                 ("L1", f"{value('L1 (ft)')}"),
                 ("Terminal Section", f"{value('Terminal section (ft)')} ft"),

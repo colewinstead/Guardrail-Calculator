@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Protocol
 
 from guardrail_design import (
-    ClearZoneSelection, DividedLayout, Facility, HazardOffsetSource, PlacementMode,
+    ClearZoneCriteria, ClearZoneSelection, DividedLayout, Facility, HazardOffsetSource, PlacementMode,
     ReportStyle, SideSlope,
 )
 
@@ -59,6 +59,7 @@ class HazardBarrierInputs:
     offset_source: HazardOffsetSource = HazardOffsetSource.DIRECT
     slope: SideSlope | None = None
     clear_zone_selection: ClearZoneSelection | None = None
+    clear_zone_criteria: ClearZoneCriteria = ClearZoneCriteria.NEW_CONSTRUCTION
 
 
 @dataclass(frozen=True)

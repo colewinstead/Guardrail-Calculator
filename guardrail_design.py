@@ -13,6 +13,11 @@ class HazardOffsetSource(str, Enum):
     CLEAR_ZONE = "clearzone"
 
 
+class ClearZoneCriteria(str, Enum):
+    NEW_CONSTRUCTION = "new_construction"
+    THREE_R = "3r"
+
+
 class SideSlope(str, Enum):
     FLAT = "6:1_or_flatter"
     MODERATE = "5:1_to_4:1"
@@ -46,11 +51,12 @@ SUPPORTED_FLARE_RATES = (30, 28, 26, 24, 21, 18, 16, 15, 13, 0)
 DESIGN_REFERENCES = {
     "TABLE_9_6_A": "MDOT Roadway Design Manual (2020), Table 9-6-A",
     "TABLE_9_2_A": "MDOT Roadway Design Manual, Table 9-2-A (existing simplified transcription)",
+    "TABLE_12_2_B": "MDOT Roadway Design Manual (2020), Table 12-2-B, recoverable fill slopes/non-curbed rural non-freeways",
     "DEFAULT_L1_FT": "MDOT Example 9-6-1",
     "DEFAULT_TERMINAL_SECTION_FT": "GR-4 (existing application interpretation)",
 }
 
-APP_VERSION = "V8.5.4"
+APP_VERSION = "V8.6.0"
 
 
 INCR_GUARDRAIL_FT = 12.5
@@ -108,6 +114,43 @@ TABLE_9_2_A = {
         "750_1500":      {"6:1_or_flatter": (24, 26), "5:1_to_4:1": (28, 36)},
         "1501_6000":     {"6:1_or_flatter": (28, 32), "5:1_to_4:1": (34, 42)},
         "over_6000":     {"6:1_or_flatter": (30, 34), "5:1_to_4:1": (38, 46)},
+    },
+}
+
+
+# Table 12-2-B: fill slopes/non-curbed facilities, 3R rural non-freeways (feet).
+# Ranges ending above 15 ft are starred in the source: distance may be limited
+# to 15 ft for feasibility and to provide a consistent roadway template.
+TABLE_12_2_B = {
+    "40_or_less": {
+        "under_750":     {"6:1_or_flatter": (3.5, 5), "5:1_to_4:1": (3.5, 5)},
+        "750_1500":      {"6:1_or_flatter": (5, 6),   "5:1_to_4:1": (6, 7)},
+        "1501_6000":     {"6:1_or_flatter": (6, 7),   "5:1_to_4:1": (7, 8)},
+        "over_6000":     {"6:1_or_flatter": (7, 8),   "5:1_to_4:1": (8, 9)},
+    },
+    "45_50": {
+        "under_750":     {"6:1_or_flatter": (5, 6),   "5:1_to_4:1": (6, 7)},
+        "750_1500":      {"6:1_or_flatter": (7, 8),   "5:1_to_4:1": (8, 10)},
+        "1501_6000":     {"6:1_or_flatter": (8, 9),   "5:1_to_4:1": (10, 13)},
+        "over_6000":     {"6:1_or_flatter": (10, 11), "5:1_to_4:1": (12, 14)},
+    },
+    "55": {
+        "under_750":     {"6:1_or_flatter": (6, 7),   "5:1_to_4:1": (7, 9)},
+        "750_1500":      {"6:1_or_flatter": (8, 9),   "5:1_to_4:1": (10, 12)},
+        "1501_6000":     {"6:1_or_flatter": (10, 11), "5:1_to_4:1": (12, 15)},
+        "over_6000":     {"6:1_or_flatter": (11, 12), "5:1_to_4:1": (13, 16)},
+    },
+    "60": {
+        "under_750":     {"6:1_or_flatter": (8, 9),   "5:1_to_4:1": (10, 12)},
+        "750_1500":      {"6:1_or_flatter": (10, 12), "5:1_to_4:1": (13, 16)},
+        "1501_6000":     {"6:1_or_flatter": (13, 15), "5:1_to_4:1": (16, 20)},
+        "over_6000":     {"6:1_or_flatter": (15, 16), "5:1_to_4:1": (18, 22)},
+    },
+    "65": {
+        "under_750":     {"6:1_or_flatter": (9, 10),  "5:1_to_4:1": (10, 13)},
+        "750_1500":      {"6:1_or_flatter": (12, 13), "5:1_to_4:1": (14, 18)},
+        "1501_6000":     {"6:1_or_flatter": (14, 16), "5:1_to_4:1": (17, 21)},
+        "over_6000":     {"6:1_or_flatter": (15, 17), "5:1_to_4:1": (19, 23)},
     },
 }
 

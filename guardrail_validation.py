@@ -107,12 +107,17 @@ def create_roadway(facility, L2, lane_width, lanes_this=1, lanes_opposing=1,
 
 
 def validate_inputs(inputs: "CalculationInputs") -> None:
-    from guardrail_design import Facility
+    from guardrail_design import ClearZoneCriteria, ClearZoneSelection, Facility, HazardOffsetSource, SideSlope
     road, barrier = inputs.roadway, inputs.barrier
     if not isinstance(road.facility, Facility):
         raise ValueError("Roadway facility must be a Facility value.")
     if road.facility == Facility.DIVIDED_HIGHWAY and road.divided is None:
         raise ValueError("Divided roadway dimensions are required.")
+    if not isinstance(barrier.clear_zone_criteria, ClearZoneCriteria):
+        raise ValueError("Clear-zone criteria must be a ClearZoneCriteria value.")
+    if barrier.offset_source == HazardOffsetSource.CLEAR_ZONE:
+        if not isinstance(barrier.slope, SideSlope) or not isinstance(barrier.clear_zone_selection, ClearZoneSelection):
+            raise ValueError("Automatic LA requires a side slope and clear-zone selection.")
     state = road.as_dict()
     expected = roadway_inputs(state["facility"], state["L2"], state["lane_width"],
                               state["lanes_this"], state["lanes_opposing"], state["median_width"],

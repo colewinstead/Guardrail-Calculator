@@ -2,7 +2,7 @@
 
 A Windows desktop application for calculating guardrail length-of-need values and producing a PDF calculation package. The calculator is based on the MDOT Roadway Design Manual tables and the included GR-4 reference documents.
 
-Current application version: **V8.5.4**
+Current application version: **V8.6.0**
 
 The source is organized around immutable calculation snapshots, a pure engine,
 and separate report/drawing output modules. See [Python architecture](ARCHITECTURE.md)
@@ -45,6 +45,22 @@ does not provide the `tk accessible` naming API documented for
 Automation exposed most controls as unnamed panes during inspection. These
 keyboard and contrast improvements do not establish NVDA support; that requires
 a separate runtime/accessibility review and testing with a screen reader.
+
+### Automatic clear-zone criteria
+
+Choose **New Construction** (Table 9-2-A) or **3R Rural Non-Freeway**
+(Table 12-2-B) when selecting LA from the clear-zone table. The 3R lookup covers
+recoverable fill slopes on non-curbed facilities, at supported design speeds
+from 30 through 65 mph. Backslopes and nonrecoverable fill slopes are not supported.
+The selected criteria, slope, and range selection are recorded in the PDF.
+
+[MDOT's 2020 Roadway Design Manual](https://mdot.ms.gov/documents/Roadway%20Design/Standards/Manuals/2020%20Roadway%20Design%20Manual.pdf),
+Section 12-2.08.01, recommends Chapter 9
+clear-zone distances where feasible and Table 12-2-B where they are infeasible.
+The starred ranges retain their published values; the conditional 15-ft allowance
+requires project review and is not applied automatically. Direct LA entry remains
+independent of the table selector.
+
 
 ### DXF export modes - BETA
 

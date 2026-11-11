@@ -52,6 +52,33 @@ class InputStateTests(unittest.TestCase):
         self.ui["la_mode_var"].set("Select from Clear-Zone Table")
         self.assertEqual(label.winfo_manager(), "grid")
 
+    def test_3r_selector_updates_preview_snapshot_and_report(self):
+        from guardrail_design import ClearZoneCriteria
+        self.ui["adt_var"].set("3000")
+        self.ui["criteria_var"].set("3R Rural Non-Freeway")
+        self.assertIn("14.0000 FT", self.ui["clear_zone_used_var"].get())
+        self.assertIn("12-2-B", self.ui["clear_zone_reference_label"].cget("text"))
+        self.assertEqual(self.ui["clear_zone_note_label"].winfo_manager(), "grid")
+        snapshot = self.ui["calculate_model"]()
+        self.assertEqual(snapshot.inputs.barrier.clear_zone_criteria, ClearZoneCriteria.THREE_R)
+        self.ui["criteria_var"].set("New Construction")
+        self.assertIn("28.0000 FT", self.ui["clear_zone_used_var"].get())
+        payload = report_payload(ReportModel(snapshot, ReportStyle.COMPLETE, "2026-11-10 12:00"))
+        self.assertIn("12-2-B", payload["Clear-Zone Criteria"])
+        self.assertEqual(payload["LA (ft)"], "14.0000")
+
+    def test_3r_rejects_70_mph_and_manual_la_disables_selector(self):
+        self.ui["criteria_var"].set("3R Rural Non-Freeway")
+        self.ui["speed_var"].set("70")
+        self.assertIn("3R clear-zone lookup supports", self.ui["clear_zone_used_var"].get())
+        with self.assertRaisesRegex(ValueError, "3R clear-zone lookup"):
+            self.ui["calculate_model"]()
+        self.ui["la_mode_var"].set("Enter Hazard Offset Directly")
+        self.ui["update_conditional_fields"]()
+        self.assertTrue(self.ui["criteria_combo"].instate(["disabled"]))
+        self.assertEqual(self.ui["clear_zone_note_label"].winfo_manager(), "")
+        self.assertEqual(self.ui["calculate_model"]().inputs.barrier.LA, 30)
+
     def test_primary_button_contrast_in_each_interactive_state(self):
         def luminance(color):
             channels = [int(color[index:index + 2], 16) / 255 for index in (1, 3, 5)]
