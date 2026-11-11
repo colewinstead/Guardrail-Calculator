@@ -112,6 +112,43 @@ TABLE_9_2_A = {
 }
 
 
+# Table 12-2-B: fill slopes/non-curbed facilities, 3R rural non-freeways (feet).
+# Ranges ending above 15 ft are starred in the source: distance may be limited
+# to 15 ft for feasibility and to provide a consistent roadway template.
+TABLE_12_2_B = {
+    "40_or_less": {
+        "under_750":     {"6:1_or_flatter": (3.5, 5), "5:1_to_4:1": (3.5, 5)},
+        "750_1500":      {"6:1_or_flatter": (5, 6),   "5:1_to_4:1": (6, 7)},
+        "1501_6000":     {"6:1_or_flatter": (6, 7),   "5:1_to_4:1": (7, 8)},
+        "over_6000":     {"6:1_or_flatter": (7, 8),   "5:1_to_4:1": (8, 9)},
+    },
+    "45_50": {
+        "under_750":     {"6:1_or_flatter": (5, 6),   "5:1_to_4:1": (6, 7)},
+        "750_1500":      {"6:1_or_flatter": (7, 8),   "5:1_to_4:1": (8, 10)},
+        "1501_6000":     {"6:1_or_flatter": (8, 9),   "5:1_to_4:1": (10, 13)},
+        "over_6000":     {"6:1_or_flatter": (10, 11), "5:1_to_4:1": (12, 14)},
+    },
+    "55": {
+        "under_750":     {"6:1_or_flatter": (6, 7),   "5:1_to_4:1": (7, 9)},
+        "750_1500":      {"6:1_or_flatter": (8, 9),   "5:1_to_4:1": (10, 12)},
+        "1501_6000":     {"6:1_or_flatter": (10, 11), "5:1_to_4:1": (12, 15)},
+        "over_6000":     {"6:1_or_flatter": (11, 12), "5:1_to_4:1": (13, 16)},
+    },
+    "60": {
+        "under_750":     {"6:1_or_flatter": (8, 9),   "5:1_to_4:1": (10, 12)},
+        "750_1500":      {"6:1_or_flatter": (10, 12), "5:1_to_4:1": (13, 16)},
+        "1501_6000":     {"6:1_or_flatter": (13, 15), "5:1_to_4:1": (16, 20)},
+        "over_6000":     {"6:1_or_flatter": (15, 16), "5:1_to_4:1": (18, 22)},
+    },
+    "65": {
+        "under_750":     {"6:1_or_flatter": (9, 10),  "5:1_to_4:1": (10, 13)},
+        "750_1500":      {"6:1_or_flatter": (12, 13), "5:1_to_4:1": (14, 18)},
+        "1501_6000":     {"6:1_or_flatter": (14, 16), "5:1_to_4:1": (17, 21)},
+        "over_6000":     {"6:1_or_flatter": (15, 17), "5:1_to_4:1": (19, 23)},
+    },
+}
+
+
 LAYERS = {
     "alignment": "GR_ALIGNMENT", "road": "GR_ROAD", "bridge": "GR_BRIDGE",
     "lane": "GR_LANE_LINES", "shoulder": "GR_SHOULDER_FLARE", "normal_shoulder": "GR_NORMAL_SHOULDER",
