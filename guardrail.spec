@@ -3,7 +3,7 @@
 
 import os
 import runpy
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
@@ -17,8 +17,18 @@ a = Analysis(
         ("gr manual.pdf", "."),
         ("GR-4.pdf", "."),
         ("GR-4a.pdf", "."),
+        *collect_data_files("matplotlib"),
     ],
-    hiddenimports=collect_submodules("pypdf") + collect_submodules("ezdxf"),
+    hiddenimports=(
+        collect_submodules("pypdf")
+        + collect_submodules("ezdxf")
+        + [
+            "guardrail_pdf_math",
+            "matplotlib.font_manager",
+            "matplotlib.mathtext",
+            "matplotlib.backends.backend_agg",
+        ]
+    ),
     hookspath=[],
     hooksconfig={"matplotlib": {"backends": ["Agg"]}},
     runtime_hooks=[],
