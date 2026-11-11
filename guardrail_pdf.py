@@ -366,10 +366,11 @@ def generate_pdf_calc_sheet(pdf_path: str, data: dict) -> None:
                 ("L1", f"{value('L1 (ft)')}"),
                 ("Terminal Section", f"{value('Terminal section (ft)')} ft"),
                 ("LR", f"{value('LR (ft)')} ft"),
+                ("Flare ratio, q = b/a", escape(str(data.get("__math_inputs", {}).get("q", "b/a")))),
             ]),
             Spacer(1, 4),
             clear_zone_note(),
-            p("<i>q</i> = b/a (flare ratio); <i>T</i> = terminal section length. Lengths in feet.", "Note"),
+            p("<i>T</i> = terminal section length. Lengths in feet.", "Note"),
             calculation_block(
                 "Near-Side Length of Need",
                 "__x_eq_near",

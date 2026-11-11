@@ -46,6 +46,10 @@ class PdfRefinementTests(unittest.TestCase):
             self.assertNotIn('/Courier', fonts)
             self.assertIn('Substitutions show rounded values', text)
             self.assertIn('NEAR SIDE', reader.pages[1].extract_text())
+            self.assertIn('Flare ratio, q = b/a', text)
+            self.assertIn('Terminal Section', text)
+            self.assertIn('T = terminal section length. Lengths in feet.', text)
+            self.assertNotIn('q = b/a (flare ratio);', text)
             opposing = next(page.extract_text() for page in reader.pages if 'OPPOSING SIDE' in page.extract_text())
             self.assertIn('Opposing-Side Length of Need', opposing)
 
