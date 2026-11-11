@@ -208,6 +208,25 @@ class InputStateTests(unittest.TestCase):
             self.ui["pick_pdf_path"]()
         self.assertEqual(save.call_args.kwargs["initialfile"], "Guardrail Calculations.pdf")
 
+    def test_pdf_export_writes_complete_package_with_actual_renderer(self):
+        from pypdf import PdfReader
+
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "Guardrail Calculations.pdf"
+            self.ui["pdf_path_var"].set(str(path))
+            self.ui["auto_open_var"].set(False)
+            snapshot = self.ui["calculate_model"]()
+            with patch("tkinter.messagebox.showinfo") as info, \
+                    patch("tkinter.messagebox.showerror") as errors:
+                self.ui["generate_pdf_action"]()
+            errors.assert_not_called()
+            info.assert_called_once()
+            pages = PdfReader(path).pages
+            self.assertEqual(len(pages), 8)
+            self.assertIn(f"{snapshot.result.A:.4f}", pages[0].extract_text())
+            self.assertIn("DETAILED CALCULATIONS", pages[1].extract_text())
+            self.assertIn("APPENDIX B", pages[-1].extract_text())
+
     def test_pdf_uses_snapshot_when_form_changes_during_save_dialog(self):
         self.ui["project_var"].set("Original Project")
         expected = self.ui["calculate_model"]()
