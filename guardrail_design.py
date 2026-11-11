@@ -13,6 +13,11 @@ class HazardOffsetSource(str, Enum):
     CLEAR_ZONE = "clearzone"
 
 
+class ClearZoneCriteria(str, Enum):
+    NEW_CONSTRUCTION = "new_construction"
+    THREE_R = "3r"
+
+
 class SideSlope(str, Enum):
     FLAT = "6:1_or_flatter"
     MODERATE = "5:1_to_4:1"
@@ -46,11 +51,12 @@ SUPPORTED_FLARE_RATES = (30, 28, 26, 24, 21, 18, 16, 15, 13, 0)
 DESIGN_REFERENCES = {
     "TABLE_9_6_A": "MDOT Roadway Design Manual (2020), Table 9-6-A",
     "TABLE_9_2_A": "MDOT Roadway Design Manual, Table 9-2-A (existing simplified transcription)",
+    "TABLE_12_2_B": "MDOT Roadway Design Manual (2020), Table 12-2-B, recoverable fill slopes/non-curbed rural non-freeways",
     "DEFAULT_L1_FT": "MDOT Example 9-6-1",
     "DEFAULT_TERMINAL_SECTION_FT": "GR-4 (existing application interpretation)",
 }
 
-APP_VERSION = "V8.5.4"
+APP_VERSION = "V8.6.0"
 
 
 INCR_GUARDRAIL_FT = 12.5

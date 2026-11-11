@@ -4,13 +4,20 @@ import math
 from typing import Optional
 import guardrail_validation as validation
 from guardrail_validation import require_finite as _require_finite
-from guardrail_design import INCR_GUARDRAIL_FT, DEFAULT_GATING_FT, TABLE_9_6_A, TABLE_9_2_A
+from guardrail_design import INCR_GUARDRAIL_FT, DEFAULT_GATING_FT, TABLE_9_6_A, TABLE_9_2_A, TABLE_12_2_B, HazardOffsetSource
 from guardrail_models import CalculationInputs, CalculationResult, CalculationSnapshot, ProjectMetadata
 
 
 def calculate(inputs: CalculationInputs) -> CalculationResult:
     validation.validate_inputs(inputs)
     road, barrier = inputs.roadway, inputs.barrier
+    if barrier.offset_source == HazardOffsetSource.CLEAR_ZONE:
+        expected_la = resolve_clear_zone(
+            inputs.speed, inputs.adt, barrier.slope, barrier.clear_zone_selection,
+            barrier.LA, criteria=barrier.clear_zone_criteria,
+        )
+        if barrier.LA != expected_la:
+            raise ValueError("LA disagrees with the selected clear-zone criteria.")
     values = compute_guardrail_outputs(inputs.speed, inputs.adt, barrier.LA, road.L2,
                                       road.L2_opp, barrier.L1, barrier.terminal, barrier.flare_rate)
     return CalculationResult(**values)
@@ -69,15 +76,28 @@ def resolve_clear_zone(
     slope: str,
     selection: str,
     custom_value: Optional[float] = None,
+    *,
+    criteria: str = "new_construction",
 ) -> float:
-    """Resolve a Table 9-2-A clear-zone selection without UI or console dependencies."""
+    """Resolve a recoverable fill-slope clear-zone selection in feet."""
     _require_finite(speed=speed, adt=adt)
     if slope not in ("6:1_or_flatter", "5:1_to_4:1"):
         raise ValueError("Invalid clear-zone side-slope category.")
     if selection not in ("min", "mid", "max", "custom"):
         raise ValueError("Invalid clear-zone selection.")
 
-    mn, mx = TABLE_9_2_A[speed_group_clearzone(speed)][adt_group_clearzone(adt)][slope]
+    if criteria == "new_construction":
+        table = TABLE_9_2_A
+        speed_group = speed_group_clearzone(speed)
+    elif criteria == "3r":
+        if speed not in (30, 35, 40, 45, 50, 55, 60, 65):
+            raise ValueError("3R clear-zone lookup supports design speeds 30, 35, 40, 45, 50, 55, 60, and 65 mph.")
+        table = TABLE_12_2_B
+        speed_group = "65" if speed == 65 else speed_group_clearzone(speed)
+    else:
+        raise ValueError("Invalid clear-zone criteria.")
+
+    mn, mx = table[speed_group][adt_group_clearzone(adt)][slope]
     if selection == "min":
         return float(mn)
     if selection == "mid":

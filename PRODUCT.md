@@ -46,8 +46,8 @@ it does not establish approval of unresolved engineering assumptions.
 ## Capabilities and Constraints
 
 - Support two-lane/two-way and divided-highway facilities, MDOT Table 9-6-A
-  runout lengths, Table 9-2-A clear-zone selection, transitions, terminals,
-  flare rates, and gating lengths.
+  runout lengths, Table 9-2-A and Table 12-2-B recoverable fill-slope clear-zone
+  selection, transitions, terminals, flare rates, and gating lengths.
 - Preserve one immutable calculation snapshot as the authority for the UI,
   reports, and drawings. Keep calculation and export logic separate from Tkinter.
 - Preserve engineering terminology, including LA and L2, units, station notation,

@@ -9,7 +9,7 @@ import guardrail_landxml
 import guardrail_validation as validation
 from guardrail_design import (
     APP_VERSION, DEFAULT_L1_FT, DEFAULT_TERMINAL_SECTION_FT, Facility, HazardOffsetSource,
-    SideSlope, ClearZoneSelection, ReportStyle, DividedLayout, PlacementMode,
+    SideSlope, ClearZoneCriteria, ClearZoneSelection, ReportStyle, DividedLayout, PlacementMode,
     SUPPORTED_SPEEDS, SUPPORTED_FLARE_RATES,
 )
 from guardrail_models import (
@@ -36,6 +36,10 @@ def ui_main():
     LA_MODES = {
         "Enter Hazard Offset Directly": HazardOffsetSource.DIRECT,
         "Select from Clear-Zone Table": HazardOffsetSource.CLEAR_ZONE,
+    }
+    CRITERIA = {
+        "New Construction": ClearZoneCriteria.NEW_CONSTRUCTION,
+        "3R Rural Non-Freeway": ClearZoneCriteria.THREE_R,
     }
     SLOPES = {
         "6:1 or Flatter": SideSlope.FLAT,
@@ -153,6 +157,7 @@ def ui_main():
     adt_var = tk.StringVar(value="6000")
     la_mode_var = tk.StringVar(value="Select from Clear-Zone Table")
     LA_var = tk.StringVar(value="30")
+    criteria_var = tk.StringVar(value="New Construction")
     slope_var = tk.StringVar(value="6:1 or Flatter")
     cz_pick_var = tk.StringVar(value="Midpoint")
     cz_custom_var = tk.StringVar()
@@ -287,27 +292,35 @@ def ui_main():
     design_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 0), pady=(0, 10))
     la_mode_combo = add_field(design_frame, 0, "Hazard Offset Source", la_mode_var, "combo", list(LA_MODES))
     LA_entry = add_field(design_frame, 1, "Manual Hazard Offset, LA (ft)", LA_var)
-    slope_combo = add_field(design_frame, 2, "Clear-Zone Side Slope", slope_var, "combo", list(SLOPES))
-    cz_pick_combo = add_field(design_frame, 3, "Clear-Zone Selection", cz_pick_var, "combo", list(CLEAR_ZONE_PICKS))
-    cz_custom_entry = add_field(design_frame, 4, "Custom Clear Zone (ft)", cz_custom_var)
-    l1_mode_combo = add_field(design_frame, 5, "Transition Length, L1", l1_mode_var, "combo", ["Standard", "Custom"])
-    L1_custom_entry = add_field(design_frame, 6, "Custom L1 (ft)", L1_custom_var)
-    term_mode_combo = add_field(design_frame, 7, "Terminal Section", term_mode_var, "combo", ["Default", "Custom"])
-    term_custom_entry = add_field(design_frame, 8, "Custom Terminal Length (ft)", term_custom_var)
+    criteria_combo = add_field(design_frame, 2, "Clear-Zone Criteria", criteria_var, "combo", list(CRITERIA))
+    slope_combo = add_field(design_frame, 3, "Clear-Zone Side Slope", slope_var, "combo", list(SLOPES))
+    cz_pick_combo = add_field(design_frame, 4, "Clear-Zone Selection", cz_pick_var, "combo", list(CLEAR_ZONE_PICKS))
+    cz_custom_entry = add_field(design_frame, 5, "Custom Clear Zone (ft)", cz_custom_var)
+    l1_mode_combo = add_field(design_frame, 6, "Transition Length, L1", l1_mode_var, "combo", ["Standard", "Custom"])
+    L1_custom_entry = add_field(design_frame, 7, "Custom L1 (ft)", L1_custom_var)
+    term_mode_combo = add_field(design_frame, 8, "Terminal Section", term_mode_var, "combo", ["Default", "Custom"])
+    term_custom_entry = add_field(design_frame, 9, "Custom Terminal Length (ft)", term_custom_var)
     flare_combo = add_field(
-        design_frame, 9, "Flare Rate, a/b", flare_var, "combo",
+        design_frame, 10, "Flare Rate, a/b", flare_var, "combo",
         [f"{rate}:1" for rate in SUPPORTED_FLARE_RATES if rate] + ["Non-Flared"],
     )
     clear_zone_used_label = ttk.Label(
         design_frame, textvariable=clear_zone_used_var, style="ClearZone.TLabel",
-        anchor="center", padding=(8, 7),
+        anchor="center", padding=(8, 7), wraplength=390,
     )
-    clear_zone_used_label.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(9, 2))
+    clear_zone_used_label.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(9, 2))
     clear_zone_reference_label = ttk.Label(
         design_frame, text="Using Clear-Zone Table 9-2-A (New Construction)",
         style="Subtitle.TLabel", background=panel_bg,
     )
-    clear_zone_reference_label.grid(row=11, column=0, columnspan=2, sticky="w", pady=(2, 0))
+    clear_zone_reference_label.grid(row=12, column=0, columnspan=2, sticky="w", pady=(2, 0))
+
+    clear_zone_note_var = tk.StringVar()
+    clear_zone_note_label = ttk.Label(
+        design_frame, textvariable=clear_zone_note_var, wraplength=390,
+        style="Subtitle.TLabel", background=panel_bg,
+    )
+    clear_zone_note_label.grid(row=13, column=0, columnspan=2, sticky="w", pady=(2, 0))
 
     pdf_frame = ttk.LabelFrame(content, text="Calculation Package Output", padding=12, style="Section.TLabelframe")
     pdf_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 10))
@@ -374,6 +387,7 @@ def ui_main():
 
         clearzone = LA_MODES[la_mode_var.get()] == "clearzone"
         set_state(LA_entry, not clearzone)
+        set_state(criteria_combo, clearzone)
         set_state(slope_combo, clearzone)
         set_state(cz_pick_combo, clearzone)
         set_state(cz_custom_entry, clearzone and CLEAR_ZONE_PICKS[cz_pick_var.get()] == "custom")
@@ -388,23 +402,40 @@ def ui_main():
         slope = SLOPES[slope_var.get()]
         pick = CLEAR_ZONE_PICKS[cz_pick_var.get()]
         custom_value = float(_first_number(cz_custom_var.get())) if pick == "custom" else None
-        return resolve_clear_zone(speed, adt, slope, pick, custom_value)
+        return resolve_clear_zone(speed, adt, slope, pick, custom_value,
+                                  criteria=CRITERIA[criteria_var.get()])
 
     def refresh_clear_zone_display(*_args):
         if LA_MODES[la_mode_var.get()] != "clearzone":
             clear_zone_used_var.set("")
             clear_zone_used_label.grid_remove()
             clear_zone_reference_label.grid_remove()
+            clear_zone_note_label.grid_remove()
             return
         clear_zone_used_label.grid()
         clear_zone_reference_label.grid()
+        three_r = CRITERIA[criteria_var.get()] == ClearZoneCriteria.THREE_R
+        clear_zone_reference_label.configure(text=(
+            "Using Clear-Zone Table 12-2-B (3R Rural Non-Freeway)" if three_r
+            else "Using Clear-Zone Table 9-2-A (New Construction)"
+        ))
+        clear_zone_note_var.set(
+            "Recoverable fill slopes/non-curbed facilities only. Use 3R distances where "
+            "Chapter 9 distances are infeasible. Starred ranges may be limited to 15 ft "
+            "for feasibility and a consistent roadway template; no automatic cap is applied."
+            if three_r else ""
+        )
+        if three_r:
+            clear_zone_note_label.grid()
+        else:
+            clear_zone_note_label.grid_remove()
         try:
             selected_la = compute_clear_zone(int(speed_var.get()), float(_first_number(adt_var.get())))
             clear_zone_used_var.set(f"AUTOMATIC CLEAR ZONE:  LA USED = {selected_la:.4f} FT")
-        except ValueError:
-            clear_zone_used_var.set("AUTOMATIC CLEAR ZONE:  Enter valid values to determine LA")
+        except ValueError as exc:
+            clear_zone_used_var.set(f"AUTOMATIC CLEAR ZONE:  {exc}")
 
-    for variable in (speed_var, adt_var, slope_var, cz_pick_var, cz_custom_var, la_mode_var):
+    for variable in (speed_var, adt_var, slope_var, cz_pick_var, cz_custom_var, la_mode_var, criteria_var):
         variable.trace_add("write", refresh_clear_zone_display)
 
     def calculate_model() -> CalculationSnapshot:
@@ -422,6 +453,7 @@ def ui_main():
             LA, L1, terminal, flare, source,
             SLOPES[slope_var.get()] if source == HazardOffsetSource.CLEAR_ZONE else None,
             CLEAR_ZONE_PICKS[cz_pick_var.get()] if source == HazardOffsetSource.CLEAR_ZONE else None,
+            CRITERIA[criteria_var.get()],
         )
         project = ProjectMetadata(project_var.get().strip(), route_var.get().strip(),
                                   job_var.get().strip(), prepared_var.get().strip(),
@@ -700,7 +732,7 @@ def ui_main():
     )
 
     calculation_input_vars = (
-        facility_var, speed_var, adt_var, la_mode_var, LA_var, slope_var, cz_pick_var,
+        facility_var, speed_var, adt_var, la_mode_var, LA_var, slope_var, cz_pick_var, criteria_var,
         cz_custom_var, L2_var, lane_width_var, add_dist_var, div_lane_w_var,
         lanes_this_var, lanes_opp_var, median_w_var, l1_mode_var, L1_custom_var,
         term_mode_var, term_custom_var, flare_var,

@@ -93,7 +93,10 @@ hazard geometry; complete clear-zone interpretation; flare applicability/shy-lin
 the ADT "Over 10,000" boundary; `W = LA` versus GR-4/GR-4A Note 7; short installations;
 zero terminals; and DXF-only `LA >= L2`.
 
-Future report improvements include recording LA-selection method, reference edition,
+Automatic-LA snapshots record the selected clear-zone criteria, slope, and range
+selection; PDF reports display those values. Table 12-2-B support is limited to
+recoverable fill slopes/non-curbed 3R rural non-freeways, through 65 mph.
+Future report improvements include recording reference edition,
 and overrides. These are not added to calculation sheets in Phase 3. Roadway
 reference-line/offset selection and spiral support also remain future features.
 Before Phase 4, review the separated contracts, retain portable numeric/geometry
