@@ -60,6 +60,7 @@ exe = EXE(
     [],
     name="guardrail-" + runpy.run_path(os.path.join(SPECPATH, "guardrail_design.py"))["APP_VERSION"].lower(),
     debug=False,
+    icon=os.path.join(SPECPATH, "assets", "guardrail.ico"),
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
